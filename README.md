@@ -10,6 +10,7 @@ The project's goal is to integrate advanced statistical methodologies within KNI
 
 * Auto-SARIMA Learner: Automatically finds the optimal parameters for and trains a Seasonal AutoRegressive Integrated Moving Average (SARIMA) model on a given time series, returning also the in-sample predictions, residuals and model statistics. This model is the SARIMAX class from the statsmodels library. 
 * Auto-SARIMA Predictor: Generates future forecasts using a pre-trained SARIMA model, output of the node Auto-SARIMA Learner.
+* Correspondence Analysis: Performs Correspondence Analysis (CA) or Multiple Correspondence Analysis (MCA) on categorical data to explore associations between them.
 
 ## Package Organization
 

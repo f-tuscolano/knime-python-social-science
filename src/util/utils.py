@@ -55,6 +55,13 @@ category_timeseries = knext.category(
     icon="icons/Models.png",
 )
 
+category_multivariate_analysis = knext.category(
+    path=BASE_CATEGORY_PATH,
+    level_id="multivariate_analysis",
+    name="Multivariate Analysis",
+    description="Nodes for performing statistical multivariate analysis",
+    icon="icons/Models.png",
+)
 
 def is_numeric(column: knext.Column) -> bool:
     """
@@ -67,6 +74,12 @@ def is_numeric(column: knext.Column) -> bool:
         or column.ktype == knext.int64()
     )
 
+def is_string(column: knext.Column) -> bool:
+    """
+    Checks if column is a string type.
+    @return: True if Column is a string
+    """
+    return column.ktype == knext.string()
 
 def is_zoned_datetime(column: knext.Column) -> bool:
     """
@@ -82,7 +95,6 @@ def is_datetime(column: knext.Column) -> bool:
     @return: True if selected column is of type date&time
     """
     return __is_type_x(column, LOCAL_DATE_TIME_VALUE)
-
 
 def is_time(column: knext.Column) -> bool:
     """
