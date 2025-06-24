@@ -168,8 +168,8 @@ class CorrespondenceAnalysisNode:
 
             if len(eigenvals) < max_dims:
                 raise ValueError(
-                    f"Only {len(eigenvals)} components could be computed after eigenvalue filtering. Eigenvalues close to zero are filtered out. "
-                    f"Requested {max_dims}, but data rank is lower. It means there is low variance in your data. Try to include more categorical diversity or reduce the number of requested components."
+                    f"Only {len(eigenvals)} components could be computed after filtering the eigenvalues close to zero. "
+                    f"Requested {max_dims}, but data rank is lower. Your data has low variance. Try adding another categorical column or using columns with more unique values."
                 )
 
             total_inertia = np.sum(all_eigenvals)
@@ -231,8 +231,8 @@ class CorrespondenceAnalysisNode:
 
             if len(eigenvals) < self.n_components:
                 raise Warning(
-                    f"Only {len(eigenvals)} components could be computed after eigenvalue filtering. "
-                    f"Requested {self.n_components}, but data rank is lower. Try reducing dimensions or improving categorical variance."
+                    f"Only {len(eigenvals)} components could be computed after filtering the eigenvalues close to zero. "
+                    f"Requested {max_dims}, but data rank is lower. Your data has low variance. Try adding another categorical column or using columns with more unique values."
                 )
 
             # Benzécri correction improves interpretability by adjusting inflated eigenvalues in MCA.
@@ -298,11 +298,35 @@ class CorrespondenceAnalysisNode:
         x = scores_matrix[:, 0]
         y = scores_matrix[:, 1]
 
-        # === Axis bounds with fixed ±0.2 padding, no minimum range enforcement
-        x_margin = 0.2
-        y_margin = 0.2
-        xmin, xmax = np.min(x) - x_margin, np.max(x) + x_margin
-        ymin, ymax = np.min(y) - y_margin, np.max(y) + y_margin
+        # Compute base axis ranges
+        x_min_raw, x_max_raw = np.min(x), np.max(x)
+        y_min_raw, y_max_raw = np.min(y), np.max(y)
+
+        x_range = x_max_raw - x_min_raw
+        y_range = y_max_raw - y_min_raw
+
+        # Ensure min range is at least 60% of the max range
+        min_ratio = 0.6
+        max_range = max(x_range, y_range)
+        min_range = max_range * min_ratio
+
+        if x_range < min_range:
+            x_center = (x_max_raw + x_min_raw) / 2
+            x_range = min_range
+            x_min_raw = x_center - x_range / 2
+            x_max_raw = x_center + x_range / 2
+
+        if y_range < min_range:
+            y_center = (y_max_raw + y_min_raw) / 2
+            y_range = min_range
+            y_min_raw = y_center - y_range / 2
+            y_max_raw = y_center + y_range / 2
+
+        # Add margin for padding
+        x_margin = 0.25
+        y_margin = 0.25
+        xmin, xmax = x_min_raw - x_margin, x_max_raw + x_margin
+        ymin, ymax = y_min_raw - y_margin, y_max_raw + y_margin
 
         ax.set_xlim(xmin, xmax)
         ax.set_ylim(ymin, ymax)
@@ -350,7 +374,7 @@ class CorrespondenceAnalysisNode:
                 )
 
         # === Smart label placement with adaptive offset after first cycle ===
-        base_offset = 0.025 * max(np.ptp(x), np.ptp(y))
+        base_offset = 0.015 * max(np.ptp(x), np.ptp(y))
         max_cycles = 5  # 1st cycle fixed offset, next ones increase radius
 
         # Unit direction vectors 
@@ -369,8 +393,8 @@ class CorrespondenceAnalysisNode:
 
         # === Improved overlap threshold scaling ===
         range_scale = max(np.ptp(x), np.ptp(y))  # Max range across dimensions
-        dynamic_threshold = 0.03 * range_scale   # Dynamically adjust based on plot extent
-        
+        dynamic_threshold = 0.2 * range_scale   # Dynamically adjust based on plot extent
+
         def is_too_close(p1, p2, threshold=dynamic_threshold):
             return np.hypot(p1[0] - p2[0], p1[1] - p2[1]) < threshold
 
@@ -382,7 +406,7 @@ class CorrespondenceAnalysisNode:
             # Try increasing offset after first full cycle
             for cycle_i in range(max_cycles):
                 scale = (
-                    1.0 if cycle_i == 0 else 1.3 * cycle_i
+                    1.0 if cycle_i == 0 else 1.1 * cycle_i
                 )  # Adaptive growth after first round
                 for dx, dy in directions:
                     candidate_pos = (
