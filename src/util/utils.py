@@ -55,11 +55,11 @@ category_timeseries = knext.category(
     icon="icons/Models.png",
 )
 
-category_dimensionality_reduction = knext.category(
+category_multivariate_analysis = knext.category(
     path=BASE_CATEGORY_PATH,
-    level_id="dimensionality_reduction",
-    name="Dimensionality Reduction",
-    description="Nodes for dimensionality reduction",
+    level_id="multivariate_analysis",
+    name="Multivariate Analysis",
+    description="Nodes for performing statistical multivariate analysis",
     icon="icons/Models.png",
 )
 
@@ -80,7 +80,6 @@ def is_string(column: knext.Column) -> bool:
     @return: True if Column is a string
     """
     return column.ktype == knext.string()
-
 
 def is_zoned_datetime(column: knext.Column) -> bool:
     """
