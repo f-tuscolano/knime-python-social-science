@@ -11,6 +11,8 @@ The project's goal is to integrate advanced statistical methodologies within KNI
 * Auto-SARIMA Learner: Automatically finds the optimal parameters for and trains a Seasonal AutoRegressive Integrated Moving Average (SARIMA) model on a given time series, returning also the in-sample predictions, residuals and model statistics. This model is the SARIMAX class from the statsmodels library. 
 * Auto-SARIMA Predictor: Generates future forecasts using a pre-trained SARIMA model, output of the node Auto-SARIMA Learner.
 * Correspondence Analysis: Performs Correspondence Analysis (CA) or Multiple Correspondence Analysis (MCA) on categorical data to explore associations between them.
+* PCA Learner: Trains a Principal Component Analysis (PCA) model to reduce the dimensionality of numerical data. Supports optional rotation of components (for improved interpretability) and incremental (batch-wise)  learning for large datasets. Outputs principal components, explained variance, loadings, and a reusable PCA model for deployment.
+* PCA Scorer: Applies a trained PCA model (from the PCA Learner) to new data, projecting it onto the learned principal components. Supports models trained with rotation or incremental PCA, enabling consistent dimensionality reduction on unseen datasets in production workflows.
 
 ## Package Organization
 
