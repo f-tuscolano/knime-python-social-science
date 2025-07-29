@@ -235,102 +235,13 @@ class PCAAnalysisNode:
         loadings : array-like
             The loading matrix.
 
-        Returns
-        -------
-        loadings : :obj:`numpy.ndarray`, shape (``n_features``, ``n_factors``)
-            The loadings matrix.
-        rotation_mtx : :obj:`numpy.ndarray`, shape (``n_factors``, ``n_factors``)
-            The rotation matrix.
-        """
-        X = loadings.copy()
-        n_rows, n_cols = X.shape
-        if n_cols < 2:
-            return X
-
-        # normalize the loadings matrix
-        # using sqrt of the sum of squares (Kaiser)
-        if self.normalize:
-            normalized_mtx = np.apply_along_axis(
-                lambda x: np.sqrt(np.sum(x**2)), 1, X.copy()
-            )
-            X = (X.T / normalized_mtx).T
-
-        # initialize the rotation matrix
-        # to N x N identity matrix
-        rotation_mtx = np.eye(n_cols)
-
-        d = 0
-        for _ in range(self.max_iter):
-            old_d = d
-
-            # take inner product of loading matrix
-            # and rotation matrix
-            basis = np.dot(X, rotation_mtx)
-
-            # transform data for singular value decomposition using updated formula :
-            # B <- t(x) %*% (z^3 - z %*% diag(drop(rep(1, p) %*% z^2))/p)
-            diagonal = np.diag(np.squeeze(np.repeat(1, n_rows).dot(basis**2)))
-            transformed = X.T.dot(basis**3 - basis.dot(diagonal) / n_rows)
-
-            # perform SVD on
-            # the transformed matrix
-            U, S, V = np.linalg.svd(transformed)
-
-            # take inner product of U and V, and sum of S
-            rotation_mtx = np.dot(U, V)
-            d = np.sum(S)
-
-            # check convergence
-            if d < old_d * (1 + self.tol):
-                break
-
-        # take inner product of loading matrix
-        # and rotation matrix
-        X = np.dot(X, rotation_mtx)
-        
-        # de-normalize the data
-        if self.normalize:
-            X = X.T * normalized_mtx
-        else:
-            X = X.T
-        # convert loadings matrix to data frame
-        loadings = X.T.copy()
         return loadings, rotation_mtx
     
     def _promax(self, phi, power=None):
         import numpy as np
         from sklearn.linear_model import LinearRegression
 
-        if power is None:
-            power = self.power
 
-        X = phi.copy()
-        n_rows, n_cols = X.shape
-        if n_cols < 2:
-            return X
-
-        # Apply Kaiser normalization if enabled
-        if self.normalize:
-            row_norms = np.linalg.norm(X, axis=1, keepdims=True)
-            X = X / row_norms
-
-        # First get orthogonal varimax rotation
-        orthogonal = self._varimax(X)
-
-        # Create target matrix
-        target = np.sign(orthogonal) * (np.abs(orthogonal) ** power)
-
-        # Linear regression without intercept
-        model = LinearRegression(fit_intercept=False)
-        model.fit(orthogonal, target)
-        coef = model.coef_.T
-
-        # Apply transformation
-        oblique = np.dot(orthogonal, coef)
-
-        # De-normalize if Kaiser was applied
-        if self.normalize:
-            oblique = oblique * row_norms
 
         return oblique
 
