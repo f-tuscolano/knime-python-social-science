@@ -1,18 +1,15 @@
 import logging
 import knime.extension as knext
-import pandas as pd
-import numpy as np
 from util import utils as kutil
-import matplotlib.pyplot as plt
-from io import BytesIO
+import social_science_ext
 
 LOGGER = logging.getLogger(__name__)
 
 @knext.node(
-    name="Correspondence Analysis",
+    name="Correspondence Analyzer",
     node_type=knext.NodeType.LEARNER,
-    icon_path="icons/models/correspondence.png", 
-    category=kutil.category_multivariate_analysis,
+    icon_path="correspondence.png", 
+    category=social_science_ext.main_category,
     id="correspondence_analysis",
 )
 @knext.input_table(
@@ -33,51 +30,45 @@ LOGGER = logging.getLogger(__name__)
 )
 class CorrespondenceAnalysisNode:
     """
-    A KNIME learner node that performs Correspondence Analysis (CA) or Multiple Correspondence Analysis (MCA)  on one or more selected categorical columns.
-    This node is useful for identifying hidden patterns in categorical datasets.
-    It generates a factor map to visualize the relationships between categories in a lower-dimensional space.
+    A KNIME learner node that performs Correspondence Analysis (CA) or Multiple Correspondence Analysis (MCA) on categorical data to reveal latent associations and patterns within multivariate categorical datasets.
 
     **Model Overview:**
-    This node is designed to extract latent associations between categorical variables by projecting them into a Euclidean space. It supports both:
+    This node implements geometric data analysis techniques to transform categorical variables into a continuous Euclidean space, enabling visualization and quantitative analysis of relationships between categories. The algorithm automatically selects the appropriate method based on input dimensionality:
 
-    - **CA**: for exactly two categorical columns (via a contingency table)
+    - **Correspondence Analysis (CA)**: Applied to exactly two categorical variables, analyzing their association through a contingency table decomposition.
+    - **Multiple Correspondence Analysis (MCA)**: Applied to three or more categorical variables using complete disjunctive coding and generalized singular value decomposition.
 
-    - **MCA**: for more than two categorical columns (via a complete disjunctive table)
+    Both methods employ chi-square distance metrics to preserve the relative frequencies and associations inherent in the categorical data structure, projecting high-dimensional categorical information into interpretable lower-dimensional factorial spaces.
 
-    The node computes principal coordinates, eigenvalues, contributions, and cosine squared values (cos²), providing insight into the structure of associations between modalities. It also generates a factor map to visualize the relationships among categories in the selected dimensions.
+    **Output Specifications:**
 
-    **Model Summary Explanation (for each modality):**
+    **Variance Explained Table:**
+    Contains eigenvalue decomposition results with proportion and cumulative variance explained by each extracted dimension, enabling assessment of dimensionality reduction quality.
 
-    - **Modality**:
-      The category value being analyzed. Extracted from the selected input columns.
+    **Model Summary Table (Modality-Level Statistics):**
+    - **Modality**: Categorical level identifier from the input variables
+    - **Mass**: Marginal relative frequency of the modality in the dataset
+    - **Point Inertia**: Absolute contribution to total inertia (χ² distance from independence)
+    - **Contribution (Dim #)**: Relative contribution percentage to each dimension's inertia
+    - **Coordinate (Dim #)**: Principal coordinate position along each extracted dimension
+    - **cos² (Dim #)**: Squared correlation (representation quality) between modality and dimension
 
-    - **Mass**:
-      The relative frequency (marginal proportion) of the modality in the dataset. Higher mass values indicate more common categories among the observations.
+    **Factor Map Visualization:**
+    Biplot representation displaying modality positions in the first two factorial dimensions, with point sizing proportional to mass and positioning reflecting similarity relationships.
 
-    - **Point Inertia**:
-      The absolute contribution of the modality to the total inertia (i.e., variance), calculated as product of mass and the squared distance from origin.
+    **Computational Implementation:**
+    - Applies Benzécri correction to eigenvalues in MCA to adjust for inflation due to multiple coding
+    - Implements numerical stability controls for near-zero eigenvalues
+    - Automatically determines optimal dimensionality based on data matrix rank
+    - Uses standardized residuals and chi-square decomposition for metric preservation
 
-    - **Contribution (Dim #)**:
-      The percentage contribution of the modality to the inertia of each dimension. Higher values mean the modality plays a stronger role in shaping that axis.
+    **Theoretical Foundation:**
+    Based on the correspondence analysis framework developed by Jean-Paul Benzécri, extending classical multivariate analysis to categorical data through geometric interpretation of chi-square statistics and optimal scaling theory.
 
-    - **Coordinate (Dim #)**:
-      The position of the modality along each principal dimension. These values are used to place points on the factor map. Categories that appear close together on the map are more similar.
-
-    - **cos² (Dim #)** *(aka Representation Quality)*:
-      The squared cosine of the angle between the modality vector and the dimension axis. Indicates how well the modality is represented by that dimension. Values near 1 mean excellent representation. If you sum the cos² values across the extracted dimensions, you get the overall representation quality for that modality.
-
-    **Computational details:**
-
-    - Filters out near-zero eigenvalues to avoid numerical instability.
-
-    - Automatically reduces the number of computed dimensions based on the rank of the data.
-
-    - Applies Benzécri correction to eigenvalues in MCA mode for interpretability.
-
-    The mathematical foundation of this method reflects the brilliance of Jean-Paul Benzécri, whose pioneering work in data analysis introduced elegant geometric insights into multivariate statistics.
-    
     **References:**
-    - Greenacre, M. (2017). *Correspondence Analysis in Practice* (3rd ed.). Chapman and Hall/CRC.  
+    - Benzécri, J. P. (1973). *L'Analyse des Données, Volume 2: L'Analyse des Correspondances*. Dunod.
+    - Greenacre, M. (2017). *Correspondence Analysis in Practice* (3rd ed.). Chapman and Hall/CRC.
+    - Le Roux, B., & Rouanet, H. (2010). *Multiple Correspondence Analysis*. SAGE Publications.
     """
     n_components = knext.IntParameter(
         label="Number of Output Dimensions",
@@ -119,6 +110,12 @@ class CorrespondenceAnalysisNode:
         )
 
     def execute(self, exec_context: knext.ExecutionContext, input_table: knext.Table):
+        # Import heavy dependencies only when needed
+        import pandas as pd
+        import numpy as np
+        import matplotlib.pyplot as plt
+        from io import BytesIO
+        
         df = input_table.to_pandas()
         dimensions = self.features_cols
         dimension_df = df[dimensions].fillna("missing").astype(str)
@@ -153,17 +150,17 @@ class CorrespondenceAnalysisNode:
             observed = contingency.to_numpy()
 
             # === Step 2: Normalize counts to get correspondence matrix ===
-            X = self._normalize_to_correspondence_matrix(pd.DataFrame(observed))
+            X = self._normalize_to_correspondence_matrix(pd.DataFrame(observed), pd, np)
 
             # === Step 3: Compute marginal distributions (masses) ===
-            r, c = self._compute_masses(X)
+            r, c = self._compute_masses(X, np)
 
             # === Step 4: Compute standardized residuals matrix ===
-            S = self._standardized_residual_matrix(X, r, c)
+            S = self._standardized_residual_matrix(X, r, c, np)
 
             # Step 5 and 6 : Apply SVD and Filter small eigenvalues, slice the matrices and compute total inertia and explained ratio
             U, singular_vals, VT, eigenvals, all_eigenvals = self._compute_svd_filtered(
-                S
+                S, np
             )
 
             if len(eigenvals) < max_dims:
@@ -182,7 +179,7 @@ class CorrespondenceAnalysisNode:
                 row_contrib,
                 col_contrib,
             ) = self._compute_coordinates_and_contributions(
-                U, VT, singular_vals, r, c, eigenvals
+                U, VT, singular_vals, r, c, eigenvals, np
             )
 
             # === Step 9: Representation quality with respect to the dimensions via cosine ===
@@ -216,17 +213,17 @@ class CorrespondenceAnalysisNode:
             K = len(dimensions)  # number of original categorical variables
 
             # Step 2: Normalize to correspondence matrix
-            Z = self._normalize_to_correspondence_matrix(z_df)
+            Z = self._normalize_to_correspondence_matrix(z_df, pd, np)
 
             # Step 3: Row and column masses
-            r, c = self._compute_masses(Z)
+            r, c = self._compute_masses(Z, np)
 
             # Step 4: Standardized residual matrix
-            S = self._standardized_residual_matrix(Z, r, c)
+            S = self._standardized_residual_matrix(Z, r, c, np)
 
             # Step 5 and 6 : Apply SVD and filter small eigenvalues, slice the matrices, apply correction, compute total inertia and explained ratio
             U, singular_vals, VT, eigenvals, all_eigenvals = self._compute_svd_filtered(
-                S
+                S, np
             )
 
             if len(eigenvals) < self.n_components:
@@ -269,7 +266,7 @@ class CorrespondenceAnalysisNode:
                 _,
                 col_contrib,
             ) = self._compute_coordinates_and_contributions(
-                U, VT, singular_vals, r, c, eigenvals
+                U, VT, singular_vals, r, c, eigenvals, np
             )
 
             # === Step 8: Representation quality with respect to the dimensions via cosine ===
@@ -435,8 +432,10 @@ class CorrespondenceAnalysisNode:
             )
 
         # === Axis labels and final layout ===
-        ax.set_xlabel("Dimension 1", fontsize=12)
-        ax.set_ylabel("Dimension 2", fontsize=12)
+        dim1_variance = explained_ratio[0] * 100  # Convert to percentage
+        dim2_variance = explained_ratio[1] * 100  # Convert to percentage
+        ax.set_xlabel(f"Dimension 1 ({dim1_variance:.1f}%)", fontsize=12)
+        ax.set_ylabel(f"Dimension 2 ({dim2_variance:.1f}%)", fontsize=12)
         ax.set_title("Correspondence Analysis – Factor Map", fontsize=14, weight="bold")
         ax.set_aspect("equal")
         ax.spines["top"].set_visible(False)
@@ -528,7 +527,7 @@ class CorrespondenceAnalysisNode:
         )
 
     ## Shared methods for both CA and MCA
-    def _normalize_to_correspondence_matrix(self, table: pd.DataFrame) -> np.ndarray:
+    def _normalize_to_correspondence_matrix(self, table, pd, np):
         """
         Convert counts to proportions by dividing the table by its total sum.
         This gives us the correspondence matrix P:
@@ -540,7 +539,7 @@ class CorrespondenceAnalysisNode:
         """
         return table.to_numpy().astype(float) / table.to_numpy().sum()
 
-    def _compute_masses(self, matrix: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def _compute_masses(self, matrix, np):
         """
         Get the row and column totals (called "masses"):
         - Row mass r[i] = sum of row i
@@ -553,8 +552,8 @@ class CorrespondenceAnalysisNode:
         return row_masses, col_masses
 
     def _standardized_residual_matrix(
-        self, matrix: np.ndarray, r: np.ndarray, c: np.ndarray
-    ) -> np.ndarray:
+        self, matrix, r, c, np
+    ):
         """
         This matrix shows how different the observed values are from what independence would suggest.
 
@@ -570,8 +569,8 @@ class CorrespondenceAnalysisNode:
         )
 
     def _compute_svd_filtered(
-        self, S: np.ndarray, threshold: float = 1e-12
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        self, S, np, threshold: float = 1e-12
+    ):
         """
         Apply SVD to the standardized residual matrix and filter out near-zero eigenvalues.
         S = U * Σ * V^T
@@ -607,13 +606,14 @@ class CorrespondenceAnalysisNode:
 
     def _compute_coordinates_and_contributions(
         self,
-        U: np.ndarray,
-        VT: np.ndarray,
-        singular_vals: np.ndarray,
-        r: np.ndarray,
-        c: np.ndarray,
-        eigenvals: np.ndarray,
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        U,
+        VT,
+        singular_vals,
+        r,
+        c,
+        eigenvals,
+        np
+    ):
         """
         Compute coordinates and contributions for rows and columns.
         - Coordinates:

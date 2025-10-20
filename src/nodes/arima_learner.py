@@ -1,17 +1,9 @@
 import logging
 import knime.extension as knext
 from util import utils as kutil
-import pandas as pd
-import numpy as np
-from statsmodels.tsa.statespace.sarimax import SARIMAX
-import pickle
-from statsmodels.tsa.stattools import kpss
-import warnings
-from statsmodels.tools.sm_exceptions import ConvergenceWarning
-
+import social_science_ext
 
 LOGGER = logging.getLogger(__name__)
-
 
 @knext.parameter_group("Non Seasonal Parameters")
 class NonSeasonalParams:
@@ -112,8 +104,8 @@ class OptimizationLoopParams:
 @knext.node(
     name="Auto-SARIMA Learner",
     node_type=knext.NodeType.LEARNER,
-    icon_path="icons/models/SARIMA_Forecaster.png",
-    category=kutil.category_timeseries,
+    icon_path="SARIMA_Forecaster.png",
+    category=social_science_ext.main_category,
     id="auto_sarima_learner",
 )
 @knext.input_table(
@@ -187,7 +179,23 @@ class AutoSarimaLearner:
     )
     seasonal_period_param = knext.IntParameter(
         label="Seasonal Period (s)",
-        description="Specify the length of the Seasonal Period. Set = 0 for a non-seasonal ARIMA model.",
+        description="""Specify the length of the seasonal period for your time series data. This parameter determines how many observations constitute one complete seasonal cycle:
+
+**Common Seasonal Periods by Data Granularity:**
+• **Monthly data with yearly seasonality**: Set to 12 (12 months = 1 year)
+• **Daily data with weekly seasonality**: Set to 7 (7 days = 1 week)  
+• **Daily data with yearly seasonality**: Set to 365 (365 days ≈ 1 year)
+• **Hourly data with daily seasonality**: Set to 24 (24 hours = 1 day)
+• **Quarterly data with yearly seasonality**: Set to 4 (4 quarters = 1 year)
+• **Minute data with hourly seasonality**: Set to 60 (60 minutes = 1 hour)
+
+**Guidelines for Selection:**
+- Examine your data visually or with autocorrelation plots to identify repeating patterns
+- The seasonal period should match the frequency of recurring patterns in your data
+- For multiple seasonalities (e.g., daily + yearly), choose the most prominent one
+- **Set to 0** to disable seasonal components and fit a standard ARIMA model instead of SARIMA
+
+**Example**: If analyzing monthly sales data that peaks every December, use seasonal period = 12 to capture the yearly pattern.""",
         default_value=2,
         min_value=0,
     )
@@ -234,6 +242,14 @@ class AutoSarimaLearner:
         )
 
     def execute(self, exec_context: knext.ExecutionContext, input: knext.Table):
+        # Import heavy dependencies
+        import pandas as pd
+        import numpy as np
+        from statsmodels.tsa.stattools import kpss
+        from statsmodels.tsa.statespace.sarimax import SARIMAX
+        from statsmodels.tools.sm_exceptions import ConvergenceWarning
+        import pickle
+        import warnings
 
         df = input.to_pandas()
         target_col = df[self.input_column]
@@ -264,6 +280,11 @@ class AutoSarimaLearner:
         best_params = self.__params_optimization_loop(
             target_col,
             exec_context=exec_context,
+            np=np,
+            kpss=kpss,
+            SARIMAX=SARIMAX,
+            warnings=warnings,
+            ConvergenceWarning=ConvergenceWarning,
         )
 
         exec_context.set_progress(0.8)
@@ -272,6 +293,10 @@ class AutoSarimaLearner:
             target_col,
             best_params,
             exec_context=exec_context,
+            SARIMAX=SARIMAX,
+            warnings=warnings,
+            np=np,
+            ConvergenceWarning=ConvergenceWarning,
         )[1]
         exec_context.set_progress(0.9)
 
@@ -291,7 +316,7 @@ class AutoSarimaLearner:
         in_samps_and_residuals.columns = ["In-Sample Predictions", "Residuals"]
 
         # populate model coefficients
-        coeffs_and_stats = self.__get_coeffs_and_stats(trained_model, best_params)
+        coeffs_and_stats = self.__get_coeffs_and_stats(trained_model, best_params, pd)
 
         model_binary = pickle.dumps(trained_model)
 
@@ -369,7 +394,7 @@ class AutoSarimaLearner:
 
         return True
 
-    def __get_coeffs_and_stats(self, model, best_params):
+    def __get_coeffs_and_stats(self, model, best_params, pd):
         """
         Extracts coefficients, standard errors, and various statistical metrics from a fitted SARIMAX model.
 
@@ -434,7 +459,7 @@ class AutoSarimaLearner:
         return summary
 
     def __find_optimal_integration_params(
-        self, series,
+        self, series, kpss,
     ):
         """
         Determines the optimal orders of non-seasonal (d) and seasonal (D) differencing required to make the time series stationary using the KPSS test.
@@ -529,6 +554,7 @@ class AutoSarimaLearner:
         series,
         current_params,
         exec_context: knext.ExecutionContext,
+        np,
     ):
         """
         Proposes a new set of SARIMA parameters by randomly adjusting the current parameters.
@@ -631,7 +657,11 @@ class AutoSarimaLearner:
         self,
         series, 
         params, 
-        exec_context: knext.ExecutionContext
+        exec_context: knext.ExecutionContext,
+        SARIMAX,
+        warnings,
+        np,
+        ConvergenceWarning,
     ):
         """
         Fits a SARIMAX model with the given parameters and evaluates its AIC score.
@@ -712,7 +742,7 @@ class AutoSarimaLearner:
 
         return (aic_score, model_fit)
 
-    def __accept_new_params(self, delta_cost, beta):
+    def __accept_new_params(self, delta_cost, beta, np):
         """
         Decides whether to accept a new set of parameters based on the change in cost (AIC) and the current annealing temperature (beta).
 
@@ -749,6 +779,11 @@ class AutoSarimaLearner:
         self,
         series,
         exec_context: knext.ExecutionContext,
+        np,
+        kpss,
+        SARIMAX,
+        warnings,
+        ConvergenceWarning,
     ):
         """
         Performs hyperparameter optimization for the SARIMA model using a simulated annealing algorithm.
@@ -823,7 +858,7 @@ class AutoSarimaLearner:
         # Create a copy to avoid modifying the original series outside this function scope
         series_copy_for_diff = series.copy()
         d, D = self.__find_optimal_integration_params(
-            series_copy_for_diff
+            series_copy_for_diff, kpss
         )
         LOGGER.info(
             f"Optimal integration parameters found: d={d}, D={D}. Generating the remaining initial parameters..."
@@ -838,7 +873,11 @@ class AutoSarimaLearner:
         current_cost = self.__evaluate_arima_model(
             series,
             current_params,
-            exec_context=exec_context
+            exec_context=exec_context,
+            SARIMAX=SARIMAX,
+            warnings=warnings,
+            np=np,
+            ConvergenceWarning=ConvergenceWarning,
         )[0]
 
         # Handle case where initial evaluation fails
@@ -860,7 +899,11 @@ class AutoSarimaLearner:
                 current_cost = self.__evaluate_arima_model(
                     series,
                     current_params,
-                    exec_context=exec_context
+                    exec_context=exec_context,
+                    SARIMAX=SARIMAX,
+                    warnings=warnings,
+                    np=np,
+                    ConvergenceWarning=ConvergenceWarning,
                 )[0]
                 if current_cost == np.inf:
                     raise RuntimeError(
@@ -898,6 +941,7 @@ class AutoSarimaLearner:
                     series,
                     current_params,
                     exec_context,
+                    np,
                 )
                 # If the proposed parameters are already in the cache, skip this iteration. Else, add them to the cache.
                 if tuple(proposed_params.items()) in proposed_params_cache:
@@ -913,6 +957,10 @@ class AutoSarimaLearner:
                             series,
                             proposed_params,
                             exec_context=exec_context,
+                            SARIMAX=SARIMAX,
+                            warnings=warnings,
+                            np=np,
+                            ConvergenceWarning=ConvergenceWarning,
                         )[0]
                     delta_cost = new_cost - current_cost
                     
@@ -923,7 +971,7 @@ class AutoSarimaLearner:
                 )
 
                 # Metropolis rule
-                if self.__accept_new_params(delta_cost, beta):
+                if self.__accept_new_params(delta_cost, beta, np):
                     current_params = proposed_params.copy()
                     current_cost = new_cost
                     accepted_moves += 1

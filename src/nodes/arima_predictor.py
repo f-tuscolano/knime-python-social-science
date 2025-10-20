@@ -1,18 +1,15 @@
 import logging
 import knime.extension as knext
 from util import utils as kutil
-import numpy as np
-import pickle
-
+import social_science_ext
 
 LOGGER = logging.getLogger(__name__)
-
 
 @knext.node(
     name="Auto-SARIMA Predictor",
     node_type=knext.NodeType.PREDICTOR,
-    icon_path="icons/models/SARIMA_Forecaster-Apply.png",
-    category=kutil.category_timeseries,
+    icon_path="SARIMA_Forecaster-Apply.png",
+    category=social_science_ext.main_category,
     id="auto_sarima_predictor",
 )
 @knext.input_binary(
@@ -77,6 +74,9 @@ class SarimaForcaster:
             self, 
             exec_context: knext.ExecutionContext,
             input_model):
+        # Import heavy dependencies
+        import pickle
+        import numpy as np
 
         exec_context.set_progress(0.1)
 

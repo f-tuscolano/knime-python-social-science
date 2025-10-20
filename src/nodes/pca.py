@@ -1,11 +1,7 @@
 import logging
 import knime.extension as knext
-import pandas as pd
-import numpy as np
 from util import utils as kutil
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-import pickle
+import social_science_ext
 
 LOGGER = logging.getLogger(__name__)
 
@@ -27,6 +23,10 @@ class RotationSettings:
             "Promax",
             "An oblique rotation that first performs Varimax, then raises loadings to a power to allow correlated components."
         )
+        QUARTIMAX = (
+            "Quartimax",
+            "An orthogonal rotation that maximizes the variance of squared loadings across variables."
+        )
     rotation_method = knext.EnumParameter(
         label="Select a rotation method",
         description="Choose a rotation method to apply to the PCA results.",
@@ -39,10 +39,10 @@ class PcaMethod(knext.EnumParameterOptions):
         INCREMENTAL = ("Incremental PCA", "Incremental Principal Component Analysis (IncrementalPCA) for large datasets.")
 
 @knext.node(
-    name="Principal Component Analysis",
+    name="Factor Analyzer",
     node_type=knext.NodeType.LEARNER,
-    icon_path="icons/models/pca.png",
-    category=kutil.category_multivariate_analysis,
+    icon_path="correspondence.png",
+    category=social_science_ext.main_category,
     id="pca_analysis",
 )
 @knext.input_table(
@@ -66,6 +66,38 @@ class PcaMethod(knext.EnumParameterOptions):
 class PCAAnalysisNode:
     """
     A KNIME learner node that performs Principal Component Analysis (PCA) on numeric input data.
+    This node is designed to extract latent structure from multivariate numeric datasets by projecting them into a lower-dimensional space. It supports several rotation methods to enhance interpretability of the principal components.
+
+    **Model Overview:**
+    This node computes principal components that capture the maximum variance in the data, optionally standardizing features before analysis. It supports both standard and incremental PCA algorithms for scalability.
+
+    - **PCA**: Reduces dimensionality by finding orthogonal axes (principal components) that explain the most variance.
+    - **Rotation**: Improves interpretability of the component loadings by applying orthogonal or oblique rotations (Varimax, Promax, Quartimax).
+
+    The node outputs:
+    - Eigenvalues and explained variance ratios for each principal component.
+    - Rotated component loadings for each input variable.
+    - A pickled model object for downstream transformation of new data.
+
+    **Component Loadings Table:**
+    - **Variable**: Name of the input feature.
+    - **Loading (PC#)**: The loading of the variable on each principal component after rotation.
+
+    **Rotation Methods:**
+    - **None**: No rotation; raw PCA loadings are used.
+    - **Varimax**: Orthogonal rotation maximizing variance of squared loadings (simplifies columns).
+    - **Promax**: Oblique rotation allowing correlated components (applies Varimax, then raises loadings to a power).
+    - **Quartimax**: Orthogonal rotation maximizing variance of squared loadings across variables (simplifies rows).
+
+    **Computational Details:**
+    - Handles missing values by dropping rows with NaNs in selected columns.
+    - Automatically limits the number of components to the number of selected features.
+    - Flips the sign of loadings for each component if the sum is less than 1, for consistency.
+    - Stores the fitted PCA model, rotation matrix, and scaling parameters for later use.
+
+    **References:**
+    - Jolliffe, I. T. (2002). *Principal Component Analysis* (2nd ed.). Springer.
+    - Abdi, H., & Williams, L. J. (2010). Principal component analysis. *Wiley Interdisciplinary Reviews: Computational Statistics*, 2(4), 433–459.
     """
     pca_method = knext.EnumParameter(
         label="PCA Method",
@@ -117,6 +149,14 @@ class PCAAnalysisNode:
         )
 
     def execute(self, exec_context: knext.ExecutionContext, input_table: knext.Table):
+        # Import heavy dependencies only when needed
+        import pickle
+        import pandas as pd
+        import numpy as np
+        from sklearn.decomposition import PCA
+        from sklearn.preprocessing import StandardScaler
+        from factor_analyzer.rotator import Rotator
+        
         df = input_table.to_pandas()
         X = df[self.features_cols].dropna()
 
@@ -151,25 +191,36 @@ class PCAAnalysisNode:
 
         # Fit PCA
         pca.fit(X_pca)
-        loadings = pca.components_.T.copy()
+        loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
         phi = loadings[:, :max_dims]
 
         # Apply rotation if selected
         rotation_method = self.rotation_settings.rotation_method
         print(f"Applying rotation method: {rotation_method}")
-        if rotation_method == "NO_ROTATION":
+        
+        # Get the actual enum value (display name)
+        rotation_value = RotationSettings.RotationMethods[rotation_method].value[0]
+        print(f"Rotation value: {rotation_value}")
+        
+        if rotation_value == "None":
             rotated_loadings = phi
             rotation_matrix = np.eye(phi.shape[1])
-        # default if no rotation
-
-        elif rotation_method == "VARIMAX":
-            rotated_loadings, rotation_matrix = self._varimax(phi)
-
-        elif rotation_method == "PROMAX":
-            rotated_loadings, rotation_matrix = self._promax(phi)
-
         else:
-            raise ValueError(f"Unknown rotation method selected: {rotation_method}")
+            # Use factor_analyzer's Rotator - convert to lowercase for the library
+            rotation_method_lower = rotation_value.lower()
+            rotator = Rotator(method=rotation_method_lower)
+            rotated_loadings = rotator.fit_transform(phi)
+            rotation_matrix = rotator.rotation_
+
+        # Flip sign of loadings if the sum over the same dimension is < 1
+        # (for each component/dimension)
+        for i in range(rotated_loadings.shape[1]):
+            col_sum = np.sum(rotated_loadings[:, i])
+            if col_sum < 1:
+                rotated_loadings[:, i] *= -1
+                # If rotation_matrix exists and is square, flip its sign for the same component
+                if rotation_matrix.shape[0] == rotation_matrix.shape[1]:
+                    rotation_matrix[:, i] *= -1
 
         # Define eigenvalues, explained variance ratio, and cumulative explained variance
         if hasattr(pca, 'explained_variance_'):
@@ -219,29 +270,3 @@ class PCAAnalysisNode:
             knext.Table.from_pandas(loadings_df),
             model_binary,
         )
-    
-    def __init__(self, normalize=True, power=4, max_iter=1000, tol=1e-6):
-        self.normalize = normalize
-        self.power = power
-        self.max_iter = max_iter
-        self.tol = tol
-
-    def _varimax(self, loadings):
-        """
-        Perform varimax (orthogonal) rotation, with optional Kaiser normalization.
-
-        Parameters
-        ----------
-        loadings : array-like
-            The loading matrix.
-
-        return loadings, rotation_mtx
-    
-    def _promax(self, phi, power=None):
-        import numpy as np
-        from sklearn.linear_model import LinearRegression
-
-
-
-        return oblique
-
