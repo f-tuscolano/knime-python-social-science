@@ -61,5 +61,5 @@ os.environ["GRPC_DNS_RESOLVER"] = "native"
 import nodes.arima_learner
 import nodes.arima_predictor
 import nodes.correspondence_analysis
-import nodes.pca
-import nodes.pca_scorer
+import nodes.factor_analysis
+import nodes.factor_scorer
