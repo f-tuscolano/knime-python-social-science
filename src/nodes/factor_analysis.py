@@ -114,12 +114,6 @@ class FactorAnalysisNode:
     - Flips the sign of loadings for each component if the sum is less than 1, for consistency.
     - Stores the fitted model, rotation matrix, and scaling parameters for later use.
 
-    **Eigenvalue Computation:**
-    - **PCA Methods**: Uses true eigenvalues from covariance matrix decomposition.
-    - **Factor Analysis**: Computes pseudo-eigenvalues as sum of squared loadings per factor (Σ(loading_ik²)).
-      These represent the variance captured by each factor and are analogous to eigenvalues in interpretation.
-      This approach follows standard factor analysis practice for assessing factor importance.
-
     **Model Output for Scoring:**
     The binary model output contains comprehensive information for downstream prediction:
     - Fitted model object (sklearn PCA/IncrementalPCA/FactorAnalysis)
@@ -381,4 +375,5 @@ class FactorAnalysisNode:
             knext.Table.from_pandas(variance_df),
             knext.Table.from_pandas(loadings_df),
             model_binary,
+
         )
