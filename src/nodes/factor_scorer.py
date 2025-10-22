@@ -5,7 +5,7 @@ import social_science_ext
 LOGGER = logging.getLogger(__name__)
 
 @knext.node(
-    name="Factors Scorer",
+    name="Factor Scorer",
     node_type=knext.NodeType.PREDICTOR,
     icon_path="correspondence.png",
     category=social_science_ext.main_category,
@@ -200,3 +200,4 @@ class FactorScorerNode:
         final_df = pd.concat([result_df, scores_df], axis=1)
 
         return knext.Table.from_pandas(final_df)
+
