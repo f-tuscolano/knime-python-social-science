@@ -13,7 +13,7 @@ The project's goal is to integrate advanced statistical methodologies within KNI
 * Correspondence Analysis Learner: Performs Correspondence Analysis (CA) or Multiple Correspondence Analysis (MCA) on categorical data to explore associations between them.
 * Factor Analyzer: Trains a dimensionality-reduction model using either Principal Component Analysis (PCA) or Exploratory Factor Analysis (EFA). Supports optional component/factor rotation (for interpretability) via factor_analyzer functions (varimax, promax, quartimax) and incremental (batch-wise) PCA for large datasets.
 * Factor Scorer: Applies a trained PCA or EFA model (from the Factor Analyzer) to new datasets, projecting data onto the learned components or factors. Fully compatible with models trained using rotation and with incremental PCA, ensuring consistent, reproducible scoring in production workflows.
-* 
+
 ## Package Organization
 
 * **`icons/`**: Directory containing visual assets and icon images for the extension nodes, including specialized icons for time series analysis, correspondence analysis, and PCA components.
