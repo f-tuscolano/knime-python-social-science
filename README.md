@@ -11,9 +11,9 @@ The project's goal is to integrate advanced statistical methodologies within KNI
 * Auto-SARIMA Learner: Automatically finds the optimal parameters for and trains a Seasonal AutoRegressive Integrated Moving Average (SARIMA) model on a given time series, returning also the in-sample predictions, residuals, and model statistics. This model is the SARIMAX class from the statsmodels library. 
 * Auto-SARIMA Predictor: Generates future forecasts using a pre-trained SARIMA model, output of the node Auto-SARIMA Learner.
 * Correspondence Analysis Learner: Performs Correspondence Analysis (CA) or Multiple Correspondence Analysis (MCA) on categorical data to explore associations between them.
-* Factor Analyzer: Trains a factor analysis model using Principal Component Analysis (PCA) to reduce the dimensionality of numerical data. Supports optional component rotation (for improved interpretability) using rotation functions from the factor_analyzer Python package, and incremental (batch-wise) learning for handling large datasets efficiently. Outputs include principal components, explained variance, loadings, and a reusable PCA model for deployment. (Rotation functions available: varimax, promax, oblimin, and quartimax.)
-* Factor Scorer: Applies a trained PCA model (from the Factor Analyzer) to new datasets, projecting data onto the learned principal components. The scorer is fully compatible with models trained using rotation or incremental PCA, ensuring consistent and reproducible dimensionality reduction across production workflows.
-
+* Factor Analyzer: Trains a dimensionality-reduction model using either Principal Component Analysis (PCA) or Exploratory Factor Analysis (EFA). Supports optional component/factor rotation (for interpretability) via factor_analyzer functions (varimax, promax, quartimax) and incremental (batch-wise) PCA for large datasets.
+* Factor Scorer: Applies a trained PCA or EFA model (from the Factor Analyzer) to new datasets, projecting data onto the learned components or factors. Fully compatible with models trained using rotation and with incremental PCA, ensuring consistent, reproducible scoring in production workflows.
+* 
 ## Package Organization
 
 * **`icons/`**: Directory containing visual assets and icon images for the extension nodes, including specialized icons for time series analysis, correspondence analysis, and PCA components.
