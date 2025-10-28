@@ -9,7 +9,7 @@ LOGGER = logging.getLogger(__name__)
 @knext.node(
     name="Correspondence Analyzer",
     node_type=knext.NodeType.LEARNER,
-    icon_path="../icons/icon.png",
+    icon_path="icons/CorrespondenceAnalyzer.png",
     category=social_science_ext.main_category,
     id="correspondence_analysis",
 )

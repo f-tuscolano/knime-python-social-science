@@ -46,7 +46,7 @@ class AnalysisMethod(knext.EnumParameterOptions):
 @knext.node(
     name="Factor Analyzer",
     node_type=knext.NodeType.LEARNER,
-    icon_path="../icons/icon.png",
+    icon_path="icons/FactorAnalyzer.png",
     category=social_science_ext.main_category,
     id="factor_analysis",
 )

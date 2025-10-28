@@ -8,7 +8,7 @@ LOGGER = logging.getLogger(__name__)
 @knext.node(
     name="Factor Predictor",
     node_type=knext.NodeType.PREDICTOR,
-    icon_path="../icons/icon.png",
+    icon_path="icons/FactorPredictor.png",
     category=social_science_ext.main_category,
     id="factor_predictor",
 )

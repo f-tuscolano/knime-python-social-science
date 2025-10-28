@@ -138,7 +138,7 @@ class OptimizationLoopParams:
 @knext.node(
     name="Auto-SARIMA Learner",
     node_type=knext.NodeType.LEARNER,
-    icon_path="icons/icon.png",
+    icon_path="icons/AutoSARIMALearner.png",
     category=social_science_ext.main_category,
     id="auto_sarima_learner",
 )

@@ -8,7 +8,7 @@ LOGGER = logging.getLogger(__name__)
 @knext.node(
     name="Auto-SARIMA Predictor",
     node_type=knext.NodeType.PREDICTOR,
-    icon_path="../icons/icon.png",
+    icon_path="icons/AutoSARIMAPredictor.png",
     category=social_science_ext.main_category,
     id="auto_sarima_predictor",
 )
