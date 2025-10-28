@@ -4,6 +4,7 @@ import social_science_ext
 
 LOGGER = logging.getLogger(__name__)
 
+
 @knext.node(
     name="Factor Predictor",
     node_type=knext.NodeType.PREDICTOR,
@@ -136,22 +137,22 @@ class FactorScorerNode:
         import pickle
         import pandas as pd
         import numpy as np
-        
+
         # Load the trained model and parameters from the comprehensive model dictionary
         model_data = pickle.loads(model_binary)
-        
+
         # Extract model components
-        factor_model = model_data["model"]                    # The fitted sklearn model
-        model_n_components = model_data["n_components"]       # Number of components trained
-        
+        factor_model = model_data["model"]  # The fitted sklearn model
+        model_n_components = model_data["n_components"]  # Number of components trained
+
         # Extract preprocessing information
-        scaler_mean = model_data["scaler_mean"]               # Feature means (if standardized)
-        scaler_scale = model_data["scaler_scale"]             # Feature scales (if standardized)
-        features_cols = model_data["features_cols"]           # Original feature column names
-        
+        scaler_mean = model_data["scaler_mean"]  # Feature means (if standardized)
+        scaler_scale = model_data["scaler_scale"]  # Feature scales (if standardized)
+        features_cols = model_data["features_cols"]  # Original feature column names
+
         # Extract rotation information
-        rotation_matrix = model_data.get("rotation_matrix")   # Rotation transformation matrix
-        rotation_method = model_data.get("rotation_method", "None")   # Rotation method used
+        rotation_matrix = model_data.get("rotation_matrix")  # Rotation transformation matrix
+        rotation_method = model_data.get("rotation_method", "None")  # Rotation method used
 
         max_dims = self.n_components
 
@@ -171,9 +172,7 @@ class FactorScorerNode:
 
         # Check if trained model has enough components
         if model_n_components < max_dims:
-            raise ValueError(
-                f"Requested {max_dims} components, but the model was trained with only {model_n_components} components."
-            )
+            raise ValueError(f"Requested {max_dims} components, but the model was trained with only {model_n_components} components.")
 
         # Standardize using training scaler parameters if available
         if scaler_mean is not None and scaler_scale is not None:
@@ -187,7 +186,7 @@ class FactorScorerNode:
 
         # Handle variance standardization based on analysis method
         analysis_method = model_data["analysis_method"]
-        
+
         if rotation_method and analysis_method in ["STANDARD", "INCREMENTAL"]:
             # For PCA methods: use true eigenvalues (UNCHANGED - working correctly)
             eigvals = np.array(factor_model.explained_variance_[:model_n_components], dtype=float)
@@ -212,7 +211,7 @@ class FactorScorerNode:
         else:
             # For all methods: Apply rotation matrix to whitened scores
             # This ensures consistent handling and proper orthogonality
-            rotation_matrix = rotation_matrix[:s_whitened.shape[1], :max_dims]
+            rotation_matrix = rotation_matrix[: s_whitened.shape[1], :max_dims]
             scores = s_whitened @ rotation_matrix
 
         # Build output table with appropriate column naming

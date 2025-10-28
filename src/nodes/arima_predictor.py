@@ -5,6 +5,7 @@ import social_science_ext
 
 LOGGER = logging.getLogger(__name__)
 
+
 @knext.node(
     name="Auto-SARIMA Predictor",
     node_type=knext.NodeType.PREDICTOR,
@@ -35,7 +36,7 @@ class SarimaForcaster:
     -   `Forecast periods` allows to chose the number of forecast periods, minimum is 1.
 
     -   If a log transformation was applied during training (in the Learner node), the "Reverse Log" option must be checked here to ensure forecasts are on the original scale.
-    
+
     **Outputs:**
 
     1.  Table with the forecasted values.
@@ -54,24 +55,12 @@ class SarimaForcaster:
         default_value=False,
     )
 
-
-    def configure(
-            self,
-            configure_context: knext.ConfigurationContext,
-            input_model
-        ):
-
+    def configure(self, configure_context: knext.ConfigurationContext, input_model):
         forecast_schema = knext.Column(knext.double(), "Forecasts")
 
-        return (
-            forecast_schema
-        )
+        return forecast_schema
 
-
-    def execute(
-            self, 
-            exec_context: knext.ExecutionContext,
-            input_model):
+    def execute(self, exec_context: knext.ExecutionContext, input_model):
         # Import heavy dependencies
         import pickle
         import numpy as np
@@ -83,12 +72,10 @@ class SarimaForcaster:
         exec_context.set_progress(0.5)
 
         # make out-of-sample forecasts
-        forecasts = trained_model.forecast(
-            steps=self.number_of_forecasts
-            ).to_frame(name="Forecasts")
+        forecasts = trained_model.forecast(steps=self.number_of_forecasts).to_frame(name="Forecasts")
 
         exec_context.set_progress(0.8)
-        
+
         # reverse log transformation for forecasts
         if self.natural_log:
             forecasts = np.exp(forecasts)

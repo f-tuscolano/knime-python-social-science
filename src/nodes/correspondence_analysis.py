@@ -5,6 +5,7 @@ import social_science_ext
 
 LOGGER = logging.getLogger(__name__)
 
+
 @knext.node(
     name="Correspondence Analyzer",
     node_type=knext.NodeType.LEARNER,
@@ -79,7 +80,7 @@ class CorrespondenceAnalysisNode:
     - **Origin Proximity**: Categories near origin are average/neutral, less distinctive
 
     ## Quality Assessment:
-    
+
     - **High cos²** (>0.5): Category well-represented by dimension
     - **High Contribution** (>average): Category defines the dimension meaning
     - **Cumulative Variance**: Percentage of associations explained by retained dimensions
@@ -95,6 +96,7 @@ class CorrespondenceAnalysisNode:
 
     **Note:** Method automatically determined by input dimensionality. Requires minimum 2 categories per variable.
     """
+
     n_components = knext.IntParameter(
         label="Number of Output Dimensions",
         description="Principal dimensions to extract from the analysis. More dimensions capture additional variance but increase complexity. Typical choices: 2-3 for visualization, 5-10 for detailed analysis. Cannot exceed (min(categories)-1) due to mathematical rank constraints.",
@@ -109,9 +111,7 @@ class CorrespondenceAnalysisNode:
         column_filter=kutil.is_string,
     )
 
-    def configure(
-        self, configure_context: knext.ConfigurationContext, input_schema: knext.Schema
-    ):
+    def configure(self, configure_context: knext.ConfigurationContext, input_schema: knext.Schema):
         max_dims = self.n_components  # number of dimensions to compute defines the output schema
 
         variance_explained_schema = knext.Schema(
@@ -120,8 +120,7 @@ class CorrespondenceAnalysisNode:
         )
 
         contrib_score_schema = knext.Schema(
-            [knext.string(), knext.string(), knext.double(), knext.double()]
-            + [knext.double()] * (3 * max_dims),
+            [knext.string(), knext.string(), knext.double(), knext.double()] + [knext.double()] * (3 * max_dims),
             ["Column", "Modality", "Mass", "Point Inertia"]
             + [f"Contribution (Dim {i + 1})" for i in range(max_dims)]
             + [f"Coordinate (Dim {i + 1})" for i in range(max_dims)]
@@ -140,21 +139,23 @@ class CorrespondenceAnalysisNode:
         import numpy as np
         import matplotlib.pyplot as plt
         from io import BytesIO
-        
+
         df = input_table.to_pandas()
         dimensions = self.features_cols
         dimension_df = df[dimensions].fillna("missing").astype(str)
         max_dims = self.n_components
 
         if df.size == 0:
-            raise knext.InvalidParametersError("Input table is empty. Please provide categorical data with at least 2 rows and 2 columns for correspondence analysis.")
+            raise knext.InvalidParametersError(
+                "Input table is empty. Please provide categorical data with at least 2 rows and 2 columns for correspondence analysis."
+            )
 
         if len(dimensions) < 2:
             raise knext.InvalidParametersError(
                 "Correspondence analysis requires at least 2 categorical columns. "
                 "Please select additional categorical variables to analyze associations between categories."
             )
-        
+
         if len(dimensions) < max_dims:
             raise knext.InvalidParametersError(
                 f"Cannot extract {max_dims} dimensions from {len(dimensions)} variables. "
@@ -165,7 +166,7 @@ class CorrespondenceAnalysisNode:
         # Check category counts and issue performance warnings
         total_categories = 0
         high_cardinality_cols = []
-        
+
         for col in dimensions:
             unique_count = dimension_df[col].nunique()
             if unique_count < 2:
@@ -174,11 +175,11 @@ class CorrespondenceAnalysisNode:
                     f"Each categorical variable must have at least 2 different categories for meaningful analysis. "
                     f"Consider removing this column or combining rare categories."
                 )
-            
+
             total_categories += unique_count
             if unique_count > 50:
                 high_cardinality_cols.append(f"{col} ({unique_count} categories)")
-        
+
         # Performance warning for high-cardinality categorical data
         if total_categories > 200 or high_cardinality_cols:
             exec_context.set_warning(
@@ -204,9 +205,7 @@ class CorrespondenceAnalysisNode:
 
         if len(dimensions) == 2:
             # Step 1: Compute contingency table
-            contingency = pd.crosstab(
-                dimension_df[dimensions[0]], dimension_df[dimensions[1]]
-            )
+            contingency = pd.crosstab(dimension_df[dimensions[0]], dimension_df[dimensions[1]])
             observed = contingency.to_numpy()
 
             # === Step 2: Normalize counts to get correspondence matrix ===
@@ -219,9 +218,7 @@ class CorrespondenceAnalysisNode:
             S = self._standardized_residual_matrix(X, r, c, np)
 
             # Step 5 and 6 : Apply SVD and Filter small eigenvalues, slice the matrices and compute total inertia and explained ratio
-            U, singular_vals, VT, eigenvals, all_eigenvals = self._compute_svd_filtered(
-                S, np
-            )
+            U, singular_vals, VT, eigenvals, all_eigenvals = self._compute_svd_filtered(S, np)
 
             if len(eigenvals) < max_dims:
                 raise knext.InvalidParametersError(
@@ -241,9 +238,7 @@ class CorrespondenceAnalysisNode:
                 col_coords,
                 row_contrib,
                 col_contrib,
-            ) = self._compute_coordinates_and_contributions(
-                U, VT, singular_vals, r, c, eigenvals, np
-            )
+            ) = self._compute_coordinates_and_contributions(U, VT, singular_vals, r, c, eigenvals, np)
 
             # === Step 9: Representation quality with respect to the dimensions via cosine ===
             cos2_row = (row_coords**2) / np.sum(row_coords**2, axis=1, keepdims=True)
@@ -261,14 +256,12 @@ class CorrespondenceAnalysisNode:
 
         else:
             # MCA (Multiple Correspondence Analysis):
-            # Reference: Abdi, H., & Valentin, D. (2007). *Multiple Correspondence Analysis*. In N. Salkind (Ed.), 
+            # Reference: Abdi, H., & Valentin, D. (2007). *Multiple Correspondence Analysis*. In N. Salkind (Ed.),
             # https://personal.utdallas.edu/~herve/Abdi-MCA2007-pretty.pdf
             # Wikipedia: https://en.wikipedia.org/wiki/Multiple_correspondence_analysis
 
             # Step 1: Create indicator matrix using pandas
-            z_df = pd.get_dummies(
-                dimension_df, columns=dimension_df.columns
-            )  # DataFrame with .columns
+            z_df = pd.get_dummies(dimension_df, columns=dimension_df.columns)  # DataFrame with .columns
 
             if z_df.shape[1] == 0:
                 raise knext.InvalidParametersError(
@@ -289,9 +282,7 @@ class CorrespondenceAnalysisNode:
             S = self._standardized_residual_matrix(Z, r, c, np)
 
             # Step 5 and 6 : Apply SVD and filter small eigenvalues, slice the matrices, apply correction, compute total inertia and explained ratio
-            U, singular_vals, VT, eigenvals, all_eigenvals = self._compute_svd_filtered(
-                S, np
-            )
+            U, singular_vals, VT, eigenvals, all_eigenvals = self._compute_svd_filtered(S, np)
 
             if len(eigenvals) < self.n_components:
                 raise Warning(
@@ -314,12 +305,7 @@ class CorrespondenceAnalysisNode:
             This makes the interpretation of inertia more reliable in MCA.
             """
             if K > 1:
-                corrected_eigenvals = np.array(
-                    [
-                        (K / (K - 1) * (eig - 1 / K)) ** 2 if eig > 1 / K else 0
-                        for eig in eigenvals
-                    ]
-                )
+                corrected_eigenvals = np.array([(K / (K - 1) * (eig - 1 / K)) ** 2 if eig > 1 / K else 0 for eig in eigenvals])
                 eigenvals = corrected_eigenvals
 
             total_inertia = np.sum(all_eigenvals)
@@ -332,9 +318,7 @@ class CorrespondenceAnalysisNode:
                 col_coords,
                 _,
                 col_contrib,
-            ) = self._compute_coordinates_and_contributions(
-                U, VT, singular_vals, r, c, eigenvals, np
-            )
+            ) = self._compute_coordinates_and_contributions(U, VT, singular_vals, r, c, eigenvals, np)
 
             # === Step 8: Representation quality with respect to the dimensions via cosine ===
             cos2_col = (col_coords**2) / np.sum(col_coords**2, axis=1, keepdims=True)
@@ -355,9 +339,7 @@ class CorrespondenceAnalysisNode:
         ax.grid(True, linestyle="--", alpha=0.5)
 
         if scores_matrix.shape[1] < 2:
-            raise ValueError(
-                "Not enough components to plot factor map. Need at least 2 dimensions."
-            )
+            raise ValueError("Not enough components to plot factor map. Need at least 2 dimensions.")
 
         x = scores_matrix[:, 0]
         y = scores_matrix[:, 1]
@@ -397,9 +379,7 @@ class CorrespondenceAnalysisNode:
 
         # === Assign styles by column ===
         if len(dimensions) == 2:
-            modality_columns = [dimensions[0]] * len(row_labels) + [
-                dimensions[1]
-            ] * len(col_labels)
+            modality_columns = [dimensions[0]] * len(row_labels) + [dimensions[1]] * len(col_labels)
         else:
             modality_columns = [col.split("_")[0] for col in modality_labels]
 
@@ -433,15 +413,13 @@ class CorrespondenceAnalysisNode:
             )
 
             if len(column_names) <= 4 and col not in legend_handles:
-                legend_handles[col] = ax.scatter(
-                    [], [], color=style["color"], marker=style["marker"], label=col
-                )
+                legend_handles[col] = ax.scatter([], [], color=style["color"], marker=style["marker"], label=col)
 
         # === Smart label placement with adaptive offset after first cycle ===
         base_offset = 0.015 * max(np.ptp(x), np.ptp(y))
         max_cycles = 5  # 1st cycle fixed offset, next ones increase radius
 
-        # Unit direction vectors 
+        # Unit direction vectors
         directions = [
             (1, 1),
             (-1, 1),
@@ -457,7 +435,7 @@ class CorrespondenceAnalysisNode:
 
         # === Improved overlap threshold scaling ===
         range_scale = max(np.ptp(x), np.ptp(y))  # Max range across dimensions
-        dynamic_threshold = 0.2 * range_scale   # Dynamically adjust based on plot extent
+        dynamic_threshold = 0.2 * range_scale  # Dynamically adjust based on plot extent
 
         def is_too_close(p1, p2, threshold=dynamic_threshold):
             return np.hypot(p1[0] - p2[0], p1[1] - p2[1]) < threshold
@@ -469,17 +447,13 @@ class CorrespondenceAnalysisNode:
 
             # Try increasing offset after first full cycle
             for cycle_i in range(max_cycles):
-                scale = (
-                    1.0 if cycle_i == 0 else 1.1 * cycle_i
-                )  # Adaptive growth after first round
+                scale = 1.0 if cycle_i == 0 else 1.1 * cycle_i  # Adaptive growth after first round
                 for dx, dy in directions:
                     candidate_pos = (
                         xi + dx * base_offset * scale,
                         yi + dy * base_offset * scale,
                     )
-                    if not any(
-                        is_too_close(candidate_pos, pos) for pos in label_positions
-                    ):
+                    if not any(is_too_close(candidate_pos, pos) for pos in label_positions):
                         break  # Found a good position
                 else:
                     continue  # Try next cycle
@@ -520,7 +494,7 @@ class CorrespondenceAnalysisNode:
         buf = BytesIO()
         fig.savefig(buf, format="svg")
         buf.seek(0)
-        
+
         # Variance explained output
         result_df = pd.DataFrame(
             {
@@ -533,23 +507,17 @@ class CorrespondenceAnalysisNode:
         # Pad contributions matrix if needed
         if contrib_matrix.shape[1] < max_dims:
             pad_width = max_dims - contrib_matrix.shape[1]
-            contrib_matrix = np.hstack(
-                [contrib_matrix, np.zeros((contrib_matrix.shape[0], pad_width))]
-            )
+            contrib_matrix = np.hstack([contrib_matrix, np.zeros((contrib_matrix.shape[0], pad_width))])
 
         # Pad scores matrix if needed
         if scores_matrix.shape[1] < max_dims:
             pad_width = max_dims - scores_matrix.shape[1]
-            scores_matrix = np.hstack(
-                [scores_matrix, np.zeros((scores_matrix.shape[0], pad_width))]
-            )
+            scores_matrix = np.hstack([scores_matrix, np.zeros((scores_matrix.shape[0], pad_width))])
 
         # Pad scores matrix if needed
         if cos_matrix.shape[1] < max_dims:
             pad_width = max_dims - cos_matrix.shape[1]
-            cos_matrix = np.hstack(
-                [cos_matrix, np.zeros((cos_matrix.shape[0], pad_width))]
-            )
+            cos_matrix = np.hstack([cos_matrix, np.zeros((cos_matrix.shape[0], pad_width))])
 
         # Compute Point Inertia: mass * squared Euclidean norm across components
         scores_used = scores_matrix[:, :max_dims]
@@ -561,9 +529,7 @@ class CorrespondenceAnalysisNode:
             contrib_matrix[:, :max_dims],
             columns=[f"Contribution (Dim {i + 1})" for i in range(max_dims)],
         )
-        modality_labels_clean = [
-        label.replace(f"{col}_", "") for label, col in zip(modality_labels, modality_columns)
-        ]
+        modality_labels_clean = [label.replace(f"{col}_", "") for label, col in zip(modality_labels, modality_columns)]
 
         contrib_df.insert(0, "Column", modality_columns)
         contrib_df.insert(1, "Modality", modality_labels_clean)
@@ -578,12 +544,10 @@ class CorrespondenceAnalysisNode:
         )
 
         # Combine DataFrames
-        contrib_score_df = pd.concat(
-            [contrib_df.reset_index(drop=True), score_df, cos2_df], axis=1
-        )
+        contrib_score_df = pd.concat([contrib_df.reset_index(drop=True), score_df, cos2_df], axis=1)
 
         # Insert Mass and Point Inertia right after Modality
-        
+
         contrib_score_df.insert(2, "Mass", masses)
         contrib_score_df.insert(3, "Point Inertia", point_inertia)
 
@@ -597,8 +561,8 @@ class CorrespondenceAnalysisNode:
     def _normalize_to_correspondence_matrix(self, table, pd, np):
         """
         Normalizes count data to correspondence matrix by converting frequencies to proportions.
-        
-        Creates the fundamental correspondence matrix P = N/n where N is the original 
+
+        Creates the fundamental correspondence matrix P = N/n where N is the original
         contingency/indicator table and n is the grand total. This normalization ensures
         the analysis focuses on relative associations rather than absolute frequencies.
         """
@@ -607,7 +571,7 @@ class CorrespondenceAnalysisNode:
     def _compute_masses(self, matrix, np):
         """
         Computes marginal masses (row and column totals) representing relative importance.
-        
+
         Row masses r[i] and column masses c[j] indicate how much each category contributes
         to the overall dataset. These masses weight the chi-square distance calculations
         and determine category positioning in the factorial space.
@@ -616,9 +580,7 @@ class CorrespondenceAnalysisNode:
         col_masses = matrix.sum(axis=0)
         return row_masses, col_masses
 
-    def _standardized_residual_matrix(
-        self, matrix, r, c, np
-    ):
+    def _standardized_residual_matrix(self, matrix, r, c, np):
         """
         This matrix shows how different the observed values are from what independence would suggest.
 
@@ -627,15 +589,9 @@ class CorrespondenceAnalysisNode:
 
         This highlights where observed values differ from expected ones.
         """
-        return (
-            np.diag(1.0 / np.sqrt(r))
-            @ (matrix - np.outer(r, c))
-            @ np.diag(1.0 / np.sqrt(c))
-        )
+        return np.diag(1.0 / np.sqrt(r)) @ (matrix - np.outer(r, c)) @ np.diag(1.0 / np.sqrt(c))
 
-    def _compute_svd_filtered(
-        self, S, np, threshold: float = 1e-12
-    ):
+    def _compute_svd_filtered(self, S, np, threshold: float = 1e-12):
         """
         Apply SVD to the standardized residual matrix and filter out near-zero eigenvalues.
         S = U * Σ * V^T
@@ -669,16 +625,7 @@ class CorrespondenceAnalysisNode:
             all_eigenvals,
         )
 
-    def _compute_coordinates_and_contributions(
-        self,
-        U,
-        VT,
-        singular_vals,
-        r,
-        c,
-        eigenvals,
-        np
-    ):
+    def _compute_coordinates_and_contributions(self, U, VT, singular_vals, r, c, eigenvals, np):
         """
         Compute coordinates and contributions for rows and columns.
         - Coordinates:

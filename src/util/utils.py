@@ -63,16 +63,14 @@ category_multivariate_analysis = knext.category(
     icon="icons/Models.png",
 )
 
+
 def is_numeric(column: knext.Column) -> bool:
     """
     Checks if column is numeric e.g. int, long or double.
     @return: True if Column is numeric
     """
-    return (
-        column.ktype == knext.double()
-        or column.ktype == knext.int32()
-        or column.ktype == knext.int64()
-    )
+    return column.ktype == knext.double() or column.ktype == knext.int32() or column.ktype == knext.int64()
+
 
 def is_string(column: knext.Column) -> bool:
     """
@@ -80,6 +78,7 @@ def is_string(column: knext.Column) -> bool:
     @return: True if Column is a string
     """
     return column.ktype == knext.string()
+
 
 def is_zoned_datetime(column: knext.Column) -> bool:
     """
@@ -95,6 +94,7 @@ def is_datetime(column: knext.Column) -> bool:
     @return: True if selected column is of type date&time
     """
     return __is_type_x(column, LOCAL_DATE_TIME_VALUE)
+
 
 def is_time(column: knext.Column) -> bool:
     """
@@ -141,10 +141,7 @@ def __is_type_x(column: knext.Column, type: str) -> bool:
     @return: True if column type is of type timestamp
     """
 
-    return (
-        isinstance(column.ktype, knext.LogicalType)
-        and type in column.ktype.logical_type
-    )
+    return isinstance(column.ktype, knext.LogicalType) and type in column.ktype.logical_type
 
 
 ############################################
@@ -232,9 +229,7 @@ def cast_to_related_type(value_type: str, column: pd.Series):
         return s_datetime, DEF_DATE_TIME_LABEL
 
 
-def extract_time_fields(
-    date_time_col: pd.Series, date_time_format: str, series_name: str
-) -> pd.DataFrame:
+def extract_time_fields(date_time_col: pd.Series, date_time_format: str, series_name: str) -> pd.DataFrame:
     """
     This function exracts the timestamp fields in seperate columns.
     @return: Pandas dataframe with a timestamp column and relevant date&time fields.
@@ -378,13 +373,9 @@ def __check_col_and_type(
     try:
         existing_column = schema[column]
         if check_type is not None and not check_type(existing_column):
-            raise knext.InvalidParametersError(
-                f"Column '{str(column)}' has incompatible data type"
-            )
+            raise knext.InvalidParametersError(f"Column '{str(column)}' has incompatible data type")
     except IndexError:
-        raise knext.InvalidParametersError(
-            f"Column '{str(column)}' not available in input table"
-        )
+        raise knext.InvalidParametersError(f"Column '{str(column)}' not available in input table")
 
 
 ############################################
