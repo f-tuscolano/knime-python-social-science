@@ -8,7 +8,7 @@ LOGGER = logging.getLogger(__name__)
 @knext.node(
     name="Auto-SARIMA Predictor",
     node_type=knext.NodeType.PREDICTOR,
-    icon_path="SARIMA_Forecaster-Apply.png",
+    icon_path="../icons/icon.png",
     category=social_science_ext.main_category,
     id="auto_sarima_predictor",
 )
@@ -28,13 +28,11 @@ class SarimaForcaster:
     This node takes the pre-trained SARIMA model and produces out-of-sample forecasts for a specified number of future periods.
     The forecasts are generated directly from the end of the training data used to fit the input model.
 
-    **Key Parameters & Behavior:**
+    **Parameters & Behavior:**
 
-    -   `Model Input` is a pickled `SARIMAXResults` object from `statsmodels`, output of node Auto-SARIMA Learner. It is the model utilized for the forecasting.
+    -   `Model Input` is the pickled `SARIMAX` model produced by the Auto-SARIMA Learner node. This model is used to generate the forecasts.
 
     -   `Forecast periods` allows to chose the number of forecast periods, minimum is 1.
-
-    -   The quality of the forecasts heavily depends on the quality and representativeness of the input model.
 
     -   If a log transformation was applied during training (in the Learner node), the "Reverse Log" option must be checked here to ensure forecasts are on the original scale.
     

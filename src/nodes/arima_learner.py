@@ -8,24 +8,25 @@ LOGGER = logging.getLogger(__name__)
 @knext.parameter_group("Non Seasonal Parameters")
 class NonSeasonalParams:
     """
-    Non-seasonal parameters constraints for the SARIMA model.
+    Maximum search bounds for non-seasonal ARIMA components (p,d,q). These constraints define the upper limits 
+    for parameter exploration during optimization. Higher bounds allow more complex models but increase computation time.
     """
 
     max_ar = knext.IntParameter(
         label="Max AR Order (p)",
-        description="The maximum order of lagged observations to enforce in the optimization.",
+        description="Maximum autoregressive order - how many previous observations can influence current value. Higher values capture longer-term dependencies but increase model complexity. Typical range: 0-5.",
         default_value=5,
         min_value=0,
     )
     max_i = knext.IntParameter(
         label="Max I Order (d)",
-        description="The maximum order of differencing to enforce in the optimization.",
+        description="Maximum non-seasonal differencing order - how many times the series can be differenced to achieve stationarity. Usually 0-2 is sufficient for most time series. Higher values rarely needed.",
         default_value=2,
         min_value=0,
     )
     max_ma = knext.IntParameter(
         label="Max MA Order (q)",
-        description="The maximum order of lagged forecast errors to enforce in the optimization.",
+        description="Maximum moving average order - how many previous forecast errors can influence current prediction. Captures short-term noise patterns. Typical range: 0-5.",
         default_value=5,
         min_value=0,
     )
@@ -34,69 +35,106 @@ class NonSeasonalParams:
 @knext.parameter_group("Seasonal Parameters")
 class SeasonalParams:
     """
-    Seasonal parameters constraints for the SARIMA model.
+    Maximum search bounds for seasonal ARIMA components (P,D,Q). These constraints control the complexity 
+    of seasonal patterns the model can capture. Set to 0 to disable specific seasonal components.
     """
 
     max_s_ar = knext.IntParameter(
         label="Max Seasonal AR Order (P)",
-        description="The maximum order of seasonally lagged observations to enforce in the optimization.",
-        default_value=3,
+        description="Maximum seasonal autoregressive order - how many seasonal lags can influence current value. Captures year-over-year or cycle-over-cycle dependencies. Typical range: 0-3.",
+        default_value=0,
         min_value=0,
     )
     max_s_i = knext.IntParameter(
         label="Max Seasonal I Order (D)",
-        description="The maximum order of seasonal differencing to enforce in the optimization.",
-        default_value=2,
+        description="Maximum seasonal differencing order - how many seasonal differences needed for stationarity. Usually 0-1 is sufficient. Set to 0 if no seasonal trends are present.",
+        default_value=0,
         min_value=0,
     )
     max_s_ma = knext.IntParameter(
         label="Max Seasonal MA Order (Q)",
-        description="The maximum order of seasonal lagged forecast errors to enforce in the optimization.",
-        default_value=3,
+        description="Maximum seasonal moving average order - how many seasonal forecast errors can influence predictions. Captures seasonal noise patterns. Typical range: 0-3.",
+        default_value=0,
         min_value=0,
     )
 
 
+@knext.parameter_group("Model Selection")
+class ModelSelectionParams:
+    """
+    Information criterion selection for model comparison during optimization. Different criteria emphasize 
+    different trade-offs between model fit quality and complexity penalty.
+    """
+    
+    class SelectionCriteria(knext.EnumParameterOptions):
+        AIC = (
+            "AIC",
+            "Akaike Information Criterion - Optimizes prediction accuracy, allows moderate complexity. Best for forecasting applications."
+        )
+        BIC = (
+            "BIC", 
+            "Bayesian Information Criterion - Strong complexity penalty, favors simpler models. Best for model interpretation and explanation."
+        )
+        HQIC = (
+            "HQIC",
+            "Hannan-Quinn Information Criterion - Balanced approach between prediction and parsimony. Good general-purpose choice."
+        )
+    
+    selection_criterion = knext.EnumParameter(
+        label="Model Selection Criterion",
+        description="Information criterion for comparing models during optimization. Lower values indicate better models. AIC emphasizes prediction accuracy, BIC favors simplicity, HQIC balances both concerns.",
+        default_value=SelectionCriteria.AIC.name,
+        enum=SelectionCriteria,
+    )
+
 @knext.parameter_group("Optimization Loop Parameters")
 class OptimizationLoopParams:
     """
-    These parameters control the annealing process and the MCMC steps used to find the optimal SARIMA parameters.
+    Advanced simulated annealing configuration for parameter search. Controls the thoroughness and behavior 
+    of the optimization process. Higher values provide more thorough search but increase computation time.
     """
 
     anneal_steps = knext.IntParameter(
         label="Number of Annealing Steps",
-        description="Number of different temperature levels (betas) in the annealing schedule. The higher the number, the more thorough the search for optimal parameters, but it will take longer to run.",
+        description="Temperature schedule length for optimization. More steps provide thorough search but increase runtime. Default (6) balances quality and speed for most applications.",
         default_value=5,
         min_value=2,
         is_advanced=True,
     )
     mcmc_steps = knext.IntParameter(
         label="MCMC Steps per Annealing Step",
-        description="Number of MCMC steps (parameter proposals) to perform at each temperature level. The higher the number, the more thorough the search for optimal parameters, but it will take longer to run.",
+        description="Parameter proposals at each temperature level. More steps improve exploration but increase computation. Default (10) is sufficient for typical parameter spaces.",
         default_value=10,
         min_value=1,
         is_advanced=True,
     )
     beta0 = knext.DoubleParameter(
         label="Initial Annealing Temperature (beta0)",
-        description="Initial (lowest) inverse temperature. Corresponds to high tolerance for accepting worse solutions. Set to 0.1 by default.",
+        description="Starting temperature (exploration phase). Lower values allow more random exploration initially. Must be less than beta1. Default (0.1) works well for most cases.",
         default_value=0.1,
         min_value=0.001,
         is_advanced=True,
     )
     beta1 = knext.DoubleParameter(
         label="Final Annealing Temperature (beta1)",
-        description="Final (highest) finite inverse temperature before switching to infinity. Corresponds to low tolerance for accepting worse solutions. Set to 10.0 by default.",
+        description="Final temperature before greedy phase. Higher values become more selective sooner. Must be greater than beta0. Default (3.0) provides good convergence.",
         default_value=3.0,
         min_value=0.001,
         is_advanced=True,
     )
     step_size = knext.IntParameter(
         label="Step Size for Parameter Proposals",
-        description="A step size of 1 (default) will propose new parameters higher or lower by 1. Be aware that a higher step size will be effective with looser parameter constraints.",
+        description="Maximum parameter change per proposal. Larger steps explore more aggressively but may skip good solutions. Default (1) provides steady progress.",
         default_value=1,
         min_value=1,
         max_value=3,
+        is_advanced=True,
+    )
+    early_stopping_patience = knext.IntParameter(
+        label="Early Stopping Patience",
+        description="Stops optimization after this many steps without improvement. Prevents unnecessary computation when convergence is reached. Set to 0 to disable early stopping.",
+        default_value=5,
+        min_value=0,
         is_advanced=True,
     )
 
@@ -104,76 +142,101 @@ class OptimizationLoopParams:
 @knext.node(
     name="Auto-SARIMA Learner",
     node_type=knext.NodeType.LEARNER,
-    icon_path="SARIMA_Forecaster.png",
+    icon_path="icons/icon.png",
     category=social_science_ext.main_category,
     id="auto_sarima_learner",
 )
 @knext.input_table(
     name="Input Data",
-    description="Table containing training data for the Auto-SARIMA model, must contain a numeric target column with no missing values.",
+    description="Time series data table for training the Auto-SARIMA model. Must contain at least one numeric column without missing values to serve as the target variable for forecasting.",
 )
 @knext.output_table(
     name="In-sample Predictions and Residuals",
-    description="In-sample model prediction values for the configured column and the residuals (the difference between observed value and the predicted output).",
+    description="Model fit quality assessment table containing original values, fitted predictions, residuals, and absolute errors. Initial unstable predictions (first 2×seasonal period) are excluded to ensure reliable performance metrics.",
 )
 @knext.output_table(
-    name="Coefficients and Statistics",
-    description="Table containing optimal parameters, fitted model coefficients, variance of residuals, and several model metrics along with their standard errors.",
+    name="Coefficients and Statistics", 
+    description="Complete model summary including optimal SARIMA parameters (p,d,q)(P,D,Q,s), fitted coefficients with standard errors, and goodness-of-fit statistics (AIC, BIC, Log Likelihood, MSE, MAE).",
+)
+@knext.output_table(
+    name="Residual Diagnostics",
+    description="Statistical tests for model adequacy assessment: Ljung-Box test for autocorrelation, Jarque-Bera test for normality (large samples), and Shapiro-Wilk test for normality (small-medium samples).",
+)
+@knext.output_table(
+    name="Optimization History",
+    description="Detailed optimization transparency table showing all parameter combinations tested during simulated annealing search, including information criteria values (AIC/BIC/HQIC), log likelihood, and fitting status for each attempt.",
 )
 @knext.output_binary(
     name="Model",
-    description="Pickled model object that can be used by the Auto-SARIMA Predictor node to generate different forecast lengths without refitting the model.",
+    description="Trained SARIMA model object (pickled SARIMAXResults) ready for forecasting. Can be used with the Auto-SARIMA Predictor node to generate forecasts of any length without model retraining.",
     id="auto_sarima.model",
 )
 class AutoSarimaLearner:
     """
-    Automatically finds the optimal parameters for and trains a Seasonal AutoRegressive Integrated Moving Average (SARIMA) model on a given time series. This model is the SARIMAX class from the statsmodels library.
+    
+    Automatically identifies optimal parameters and trains a Seasonal AutoRegressive Integrated Moving Average (SARIMA) model for time series forecasting. Uses simulated annealing optimization to find the best-fitting model configuration.     
+    **Note:** For non-seasonal data, set seasonal period to 0 to fit standard ARIMA models. This is the default option.
 
-    **Model Overview:**
+    ## Model Components
 
-    SARIMA models capture temporal dependencies in time series data through several components:
+    **SARIMA(p,d,q)(P,D,Q,s)** models capture both short-term and seasonal patterns in time series data:
 
-    - **AR (AutoRegressive - p):** Models the relationship between an observation and a number (`p`) of lagged observations.
+    - **AR (p):** AutoRegressive component - models dependence on `p` previous observations
+    - **I (d):** Integration order - degree of non-seasonal differencing needed for stationarity  
+    - **MA (q):** Moving Average component - models dependence on `q` previous forecast errors
+    - **Seasonal AR (P):** Seasonal autoregressive component at lag `s`
+    - **Seasonal I (D):** Seasonal integration order - seasonal differencing for stationarity
+    - **Seasonal MA (Q):** Seasonal moving average component at lag `s`
+    - **Period (s):** Length of seasonal cycle (e.g., 12 for monthly data with yearly patterns)
 
-    - **I (Integrated - d):** Represents the degree (`d`) of non-seasonal differencing required to make the time series stationary.
-    
-    - **MA (Moving Average - q):** Models the relationship between an observation and a residual error from a moving average model applied to (`q`) lagged observations.
-    
-    - **Seasonal Components (P, D, Q, S):** Analogous to their non-seasonal counterparts (p, d, q), but applied at lags corresponding to the seasonal period (`S`). `P` is the seasonal AR order, `D` is the seasonal differencing order, and `Q` is the seasonal MA order.
+    ## Optimization Strategy
 
-    **Parameter Optimization:**
-    
-    This node employs a two-step search strategy to identify the best SARIMA parameters (p, d, q, P, D, Q) for the input data:
-    
-    1.  **Differencing Orders (d, D):** The orders of non-seasonal (`d`) and seasonal (`D`) differencing are determined first using repeated Kwiatkowski-Phillips-Schmidt-Shin (KPSS) tests. Differencing is applied until the series is deemed stationary (p-value >= 0.05) or the maximum orders (`max_i`, `max_s_i`) specified by the user are reached.
-    
-    2.  **AR and MA Orders (p, q, P, Q):** The remaining parameters are optimized using a Simulated Annealing algorithm. This algorithm intelligently explores different combinations of `p`, `q`, `P`, and `Q` (within the user-defined maximums `max_ar`, `max_ma`, `max_s_ar`, `max_s_ma`) to minimize the Akaike Information Criterion (AIC) of the fitted model. The annealing process (controlled by `anneal_steps`, `mcmc_steps`, `beta0`, `beta1`, `step_size`) allows the search to escape local optima and find a globally better parameter set.
+    **Two-Phase Parameter Search:**
 
-    **Key Parameters & Behavior:**
-    
-    -   `input_column`: The target time series column. Must be numeric and contain no missing values.
-    
-    -   `seasonal_period_param (S)`: Defines the length of the seasonal cycle (e.g., 12 for monthly data with yearly seasonality). Setting S=0 disables seasonal components, effectively making the node search for the best **ARIMA** model (P, D, Q will be ignored).
-    
-    -   `natural_log`: If checked, applies a natural logarithm transformation to the data before modeling. This can help stabilize variance but requires all values in the target column to be positive. Forecasts are automatically exponentiated back to the original scale.
-    
-    -   Parameter Constraints (`max_ar`, `max_i`, etc.): These define the upper bounds for the parameter search.
-    
-    -   Optimization Parameters (`anneal_steps`, `mcmc_steps`, etc.): Control the thoroughness and behavior of the simulated annealing search. `beta0` must be less than `beta1`.
+    1. **Stationarity Testing (d, D):** Uses Kwiatkowski-Phillips-Schmidt-Shin (KPSS) tests to automatically 
+       determine required differencing orders. Applies differencing until series achieves stationarity 
+       (p-value ≥ 0.05) or reaches user-defined maximum orders.
 
-    **Outputs:**
+    2. **Simulated Annealing (p, q, P, Q):** Intelligently explores parameter combinations within user constraints 
+       to minimize the selected information criterion (AIC/BIC/HQIC). The annealing process allows escaping 
+       local optima by occasionally accepting worse solutions early in optimization, then becoming increasingly 
+       selective as the "temperature" decreases.
 
-    1.  In-sample predictions and residuals.
+    ## Configuration Options
 
-    2.  Optimal parameters, model coefficients, standard errors, and goodness-of-fit statistics (AIC, BIC, MSE, MAE).
-    
-    3.  A pickled `SARIMAXResults` object representing the trained model, usable by the Auto-SARIMA Predictor node.
+    - **Target Column:** Numeric time series variable (no missing values allowed)
+    - **Seasonal Period:** Cycle length (12=monthly/yearly, 7=daily/weekly, 0=no seasonality), For long-term seasonal patterns (periods >100), consider using Fourier Transform or STL decomposition to pre-process and remove seasonality before SARIMA modeling, as large seasonal periods cause severe computational bottlenecks, excessive memory consumption, and potential numerical instability.
+    - **Log Transformation:** Optional variance stabilization (requires positive values)
+    - **Parameter Bounds:** Maximum search ranges for all SARIMA components
+    - **Information Criterion:** AIC (prediction focus), BIC (parsimony focus), or HQIC (balanced)
+    - **Optimization Control:** Annealing steps, MCMC iterations, temperature schedule, early stopping
+
+    ## Model Outputs
+
+    1. **Predictions & Residuals:** In-sample fit assessment with quality metrics
+    2. **Model Statistics:** Optimal parameters, coefficients, standard errors, and fit statistics  
+    3. **Diagnostic Tests:** Residual autocorrelation and normality assessments
+    4. **Optimization History:** Complete search transparency showing all tested parameter combinations
+    5. **Trained Model:** Ready-to-use model object for forecasting with the Auto-SARIMA Predictor
+
+    ## Use Cases
+
+    - **Economic Forecasting:** GDP, inflation, unemployment with seasonal patterns
+    - **Sales Analytics:** Revenue, demand planning with monthly/quarterly cycles  
+    - **Operations Research:** Inventory management, capacity planning with known seasonality
+    - **Environmental Science:** Temperature, precipitation with annual cycles
+    - **Web Analytics:** Traffic patterns with daily/weekly seasonality
+
     """
+
+    # Constants for diagnostic calculations
+    DEFAULT_SKIP_OBSERVATIONS = 10
+    DEFAULT_LJUNG_BOX_LAGS = 10
 
     # General settings for the SARIMA model
     input_column = knext.ColumnParameter(
         label="Target Column",
-        description="Table containing training data for fitting the SARIMA model, must contain a numeric target column with no missing values to be used for forecasting.",
+        description="Numeric time series column for model training. Must contain no missing values. This is the variable the model will learn to predict and forecast.",
         port_index=0,
         column_filter=kutil.is_numeric,
     )
@@ -183,17 +246,26 @@ class AutoSarimaLearner:
 
 **Common Seasonal Periods by Data Granularity:**
 • **Monthly data with yearly seasonality**: Set to 12 (12 months = 1 year)
+• **Weekly data with yearly seasonality**: Set to 52 (52 weeks = 1 year)
 • **Daily data with weekly seasonality**: Set to 7 (7 days = 1 week)  
-• **Daily data with yearly seasonality**: Set to 365 (365 days ≈ 1 year)
 • **Hourly data with daily seasonality**: Set to 24 (24 hours = 1 day)
 • **Quarterly data with yearly seasonality**: Set to 4 (4 quarters = 1 year)
 • **Minute data with hourly seasonality**: Set to 60 (60 minutes = 1 hour)
+
+**⚠️ AVOID Large Seasonal Periods (>100):**
+• **Daily data with yearly seasonality (s=365)**: ❌ Causes severe computational issues
+• **Hourly data with weekly patterns (s=168)**: ❌ Extremely slow fitting
+• **Instead**: Use data aggregation (daily→weekly, hourly→daily) or remove seasonality first
+
+**Recommended Approach for Beginners:**
+1. **Start with s=0** (ARIMA) to understand basic time series patterns
+2. **Add seasonality gradually** only if clear seasonal patterns exist
 
 **Guidelines for Selection:**
 - Examine your data visually or with autocorrelation plots to identify repeating patterns
 - The seasonal period should match the frequency of recurring patterns in your data
 - For multiple seasonalities (e.g., daily + yearly), choose the most prominent one
-- **Set to 0** to disable seasonal components and fit a standard ARIMA model instead of SARIMA
+- **Set to 0** to disable seasonal components and fit a standard ARIMA model first
 
 **Example**: If analyzing monthly sales data that peaks every December, use seasonal period = 12 to capture the yearly pattern.""",
         default_value=2,
@@ -201,7 +273,7 @@ class AutoSarimaLearner:
     )
     natural_log = knext.BoolParameter(
         label="Log-transform data for modelling",
-        description="Optionally log your target column before model fitting and exponentiate the forecast before output. This may help reduce variance in the training data.",
+        description="Apply natural logarithm transformation before modeling to stabilize variance. Useful for data with exponential growth or multiplicative seasonality. Requires all positive values. Results are automatically back-transformed.",
         default_value=False,
     )
 
@@ -209,6 +281,9 @@ class AutoSarimaLearner:
     non_seasonal_params = NonSeasonalParams()
     seasonal_params = SeasonalParams()
 
+    # Model selection parameters
+    model_selection_params = ModelSelectionParams()
+    
     # Optimization loop parameters (Advanced)
     optimization_loop_params = OptimizationLoopParams()
 
@@ -229,15 +304,37 @@ class AutoSarimaLearner:
                 "The initial annealing temperature (beta0) must be less than the final annealing temperature (beta1)."
             )
 
-        insamp_res_schema = knext.Schema(
-            [knext.double(), knext.double()], ["In-Sample Predictions", "Residuals"]
+        # Enhanced predictions table schema (removed Index column)
+        predictions_schema = knext.Schema(
+            [knext.double(), knext.double(), knext.double(), knext.double()], 
+            ["Original Value", "Fitted Value", "Residual", "Absolute Error"]
         )
-        model_summary_schema = knext.Column(knext.double(), "Model Summary")
+        
+        # Enhanced model summary schema (3 columns with explanations)
+        model_summary_schema = knext.Schema(
+            [knext.string(), knext.double(), knext.string()],
+            ["Parameter", "Value", "Explanation"]
+        )
+        
+        # Diagnostics schema (unchanged)
+        diagnostics_schema = knext.Schema(
+            [knext.string(), knext.double(), knext.double(), knext.string()], 
+            ["Test", "Statistic", "P-Value", "Interpretation"]
+        )
+        
+        # Optimization history schema
+        optimization_history_schema = knext.Schema(
+            [knext.string(), knext.double(), knext.double(), knext.double(), knext.double(), knext.string()],
+            ["ARIMA_Parameters", "AIC", "BIC", "HQIC", "Log_Likelihood", "Status"]
+        )
+        
         binary_model_schema = knext.BinaryPortObjectSpec("auto_sarima.model")
 
         return (
-            insamp_res_schema,
+            predictions_schema,
             model_summary_schema,
+            diagnostics_schema,
+            optimization_history_schema,
             binary_model_schema,
         )
 
@@ -250,6 +347,9 @@ class AutoSarimaLearner:
         from statsmodels.tools.sm_exceptions import ConvergenceWarning
         import pickle
         import warnings
+
+        # Initialize optimization history at start of execution
+        self.optimization_history = []
 
         df = input.to_pandas()
         target_col = df[self.input_column]
@@ -271,6 +371,23 @@ class AutoSarimaLearner:
             raise knext.InvalidParametersError(
                 f"The number of observations in the target column ({len(target_col)}) is lower than the seasonal period ({self.seasonal_period_param})."
             )
+
+        # Add performance warning for large seasonal periods
+        if self.seasonal_period_param > 100:
+            exec_context.set_warning(
+                f"⚠️ PERFORMANCE WARNING: Large seasonal period detected ({self.seasonal_period_param}). "
+                f"This will cause severe computational issues:\n"
+                f"• Extremely slow model fitting (potentially hours)\n"\
+                f"• Risk of system freeze or out-of-memory errors\n\n"
+                f"• High memory consumption that may exhaust available RAM\n"
+                f"• Potential numerical instability and fitting failures\n"
+                f"RECOMMENDED SOLUTIONS:\n"
+                f"1. Use Fourier Transform or STL decomposition to remove long-term seasonality first\n"
+                f"2. Aggregate data to reduce seasonal period (daily→weekly: s=52, daily→monthly: s=12)\n"
+                f"3. Focus on dominant seasonality (e.g., weekly s=7 instead of yearly s=365)\n"
+                f"Consider canceling execution if you have limited computational resources."
+            )
+            LOGGER.warning(f"Large seasonal period warning issued for seasonality = {self.seasonal_period_param}")
 
         # check for missing values
         self.__validate_col(target_col)
@@ -297,51 +414,65 @@ class AutoSarimaLearner:
             warnings=warnings,
             np=np,
             ConvergenceWarning=ConvergenceWarning,
+            track_history=False,  # Don't track history for final model fitting
         )[1]
+        
+        # Check if final model fitting succeeded
+        if trained_model is None:
+            raise knext.InvalidParametersError(
+                f"Final model fitting failed with optimal parameters {best_params}. "
+                f"This can happen with:\n"
+                f"1. Very large seasonal periods (e.g., 365) that cause numerical issues\n"
+                f"2. Insufficient data relative to model complexity\n" 
+                f"3. Non-stationary data that cannot be modeled with current parameters\n"
+                f"Try: reducing seasonal period, increasing data size, or adjusting parameter constraints."
+            )
+        
         exec_context.set_progress(0.9)
 
-        # produce in-sample predictions for the whole series and put it in a Pandas Series
-        in_samples_series = trained_model.predict()
-        in_samples = pd.DataFrame(in_samples_series)
-        # reverse log transformation for in-sample values
+        # Create enhanced predictions table with original values
+        enhanced_predictions = self.__enhance_predictions_table(trained_model, input, pd, self.input_column)
+        
+        # Apply log transformation reverse if needed
         if self.natural_log:
-            in_samples = np.exp(in_samples)
+            if 'Fitted Value' in enhanced_predictions.columns:
+                enhanced_predictions['Fitted Value'] = np.exp(enhanced_predictions['Fitted Value'])
 
-        # produce residuals for the whole series based on the predictions just made and put it in a Pandas Series
-        residuals_series = trained_model.resid
-        residuals = pd.DataFrame(residuals_series)
-
-        # combine the two dfs
-        in_samps_and_residuals = pd.concat([in_samples, residuals], axis=1)
-        in_samps_and_residuals.columns = ["In-Sample Predictions", "Residuals"]
-
-        # populate model coefficients
+        # populate model coefficients and statistics with enhanced formatting
         coeffs_and_stats = self.__get_coeffs_and_stats(trained_model, best_params, pd)
+
+        # generate residual diagnostics
+        residual_diagnostics = self.__compute_residual_diagnostics(trained_model, pd)
+
+        # generate optimization history table
+        optimization_history = self.__get_optimization_history_table(pd)
 
         model_binary = pickle.dumps(trained_model)
 
         exec_context.set_progress(0.99)
 
         return (
-            knext.Table.from_pandas(in_samps_and_residuals, row_ids="keep"),
+            knext.Table.from_pandas(enhanced_predictions, row_ids="keep"),
             knext.Table.from_pandas(coeffs_and_stats, row_ids="keep"),
+            knext.Table.from_pandas(residual_diagnostics, row_ids="keep"),
+            knext.Table.from_pandas(optimization_history, row_ids="keep"),
             model_binary,
         )
 
     def __validate_col(self, column):
         """
-        Validates the input time series column for missing values.
+        Validates input time series for missing values.
 
-        Checks if the provided Pandas Series contains any missing (NaN) values.
-        If missing values are found, it raises an InvalidParametersError.
+        SARIMA models require complete time series data without gaps. This method checks for 
+        any missing (NaN) values and raises an error if found, preventing model fitting failures.
 
         Parameters:
         - column: pd.Series
-            The time series data to validate.
+            Time series data to validate for completeness.
 
         Raises:
         - knext.InvalidParametersError
-            If the input column contains missing values.
+            If missing values are detected, with count information.
         """
         if kutil.check_missing_values(column):
             missing_count = kutil.count_missing_values(column)
@@ -380,83 +511,390 @@ class AutoSarimaLearner:
         if num_of_rows < max(set_val):
             return False
 
-        # handle P, Q > 0 and p, q >= S
-        if (
-            (P > 0)
-            and (p >= S)
-            or
-            # "Autoregressive terms overlap with seasonal autogressive terms, p should be less than S when using seasonal auto regressive terms"
-            (Q > 0)
-            and (q >= S)
-        ):
-            # "Moving average terms overlap with seasonal moving average terms, q should be less than S when using seasonal moving average terms."
-            return False
+        # Parameter overlap validation - clearer logic for seasonality handling
+        if S == 0:
+            # ARIMA mode: no seasonal parameters allowed
+            if P > 0 or Q > 0:
+                return False
+        else:
+            # SARIMA mode: prevent overlap between seasonal and non-seasonal terms
+            if (P > 0 and p >= S) or (Q > 0 and q >= S):
+                return False
 
         return True
 
     def __get_coeffs_and_stats(self, model, best_params, pd):
         """
-        Extracts coefficients, standard errors, and various statistical metrics from a fitted SARIMAX model.
+        Compiles comprehensive model summary with parameters, coefficients, and fit statistics.
 
-        This function takes a fitted `statsmodels.tsa.statespace.sarimax.SARIMAXResults` object
-        and the dictionary of best parameters found during optimization. It compiles these into a
-        single Pandas DataFrame suitable for output.
+        Creates a detailed table containing the optimal SARIMA parameters, all model coefficients 
+        with their standard errors, and key goodness-of-fit metrics. Each entry includes explanatory 
+        text to help interpret the results.
 
         Parameters:
         - model: statsmodels.tsa.statespace.sarimax.SARIMAXResults
-            The fitted SARIMAX model object.
+            Fitted SARIMA model containing coefficients and statistics.
         - best_params: dict
-            A dictionary containing the optimal parameters found: {"p": int, "d": int, "q": int, "P": int, "D": int, "Q": int}.
+            Optimal parameters: {"p": int, "d": int, "q": int, "P": int, "D": int, "Q": int}.
+        - pd: pandas module
+            Pandas module for DataFrame creation.
 
         Returns:
         - pd.DataFrame
-            A DataFrame containing the model summary, including:
-            - Parameter coefficients
-            - Standard errors of coefficients
-            - Log Likelihood
-            - AIC (Akaike Information Criterion)
-            - BIC (Bayesian Information Criterion)
-            - MSE (Mean Squared Error)
-            - MAE (Mean Absolute Error)
-            - The best p, d, q, P, D, Q parameters used.
+            Model summary table with parameters, coefficients, and interpretive explanations.
         """
-        coeff = model.params.to_frame()
-
-        # calculate standard deviation of the parameters in the coefficients
-        coeff_errors = model.bse.to_frame().reset_index()
-        coeff_errors["index"] = coeff_errors["index"].apply(lambda x: x + " Std. Err")
-        coeff_errors = coeff_errors.set_index("index")
-
-        # extract log likelihood of the trained model
-        log_likelihood = pd.DataFrame(
-            data=model.llf, index=["Log Likelihood"], columns=[0]
-        )
-
-        # extract AIC (Akaike Information Criterion)
-        aic = pd.DataFrame(data=model.aic, index=["AIC"], columns=[0])
-
-        # extract BIC (Bayesian Information Criterion)
-        bic = pd.DataFrame(data=model.bic, index=["BIC"], columns=[0])
-
-        # extract Mean Squared Error
-        mse = pd.DataFrame(data=model.mse, index=["MSE"], columns=[0])
-
-        # extract Mean Absolute error
-        mae = pd.DataFrame(data=model.mae, index=["MAE"], columns=[0])
-
-        p = pd.DataFrame(data=best_params["p"], index=["Best p parameter"], columns=[0])
-        d = pd.DataFrame(data=best_params["d"], index=["Best d parameter"], columns=[0])
-        q = pd.DataFrame(data=best_params["q"], index=["Best q parameter"], columns=[0])
-        P = pd.DataFrame(data=best_params["P"], index=["Best P parameter"], columns=[0])
-        D = pd.DataFrame(data=best_params["D"], index=["Best D parameter"], columns=[0])
-        Q = pd.DataFrame(data=best_params["Q"], index=["Best Q parameter"], columns=[0])
-
-        # concatenate all metrics and parameters
-        summary = pd.concat(
-            [coeff, coeff_errors, log_likelihood, aic, bic, mse, mae, p, d, q, P, D, Q]
-        ).rename(columns={0: "Model Summary"})
+        # Create the data structure
+        data = []
+        
+        # Best model parameters first (top of table)
+        data.append({
+            "Parameter": "p (AR Order)",
+            "Value": float(best_params["p"]),
+            "Explanation": "Number of autoregressive terms (lagged observations)."
+        })
+        data.append({
+            "Parameter": "d (Differencing Order)",
+            "Value": float(best_params["d"]),
+            "Explanation": "Number of non-seasonal differences needed to make series stationary."
+        })
+        data.append({
+            "Parameter": "q (MA Order)",
+            "Value": float(best_params["q"]),
+            "Explanation": "Number of lagged forecast errors in the prediction equation."
+        })
+        data.append({
+            "Parameter": "P (Seasonal AR Order)",
+            "Value": float(best_params["P"]),
+            "Explanation": "Number of seasonal autoregressive terms."
+        })
+        data.append({
+            "Parameter": "D (Seasonal Differencing Order)",
+            "Value": float(best_params["D"]),
+            "Explanation": "Number of seasonal differences needed for stationarity."
+        })
+        data.append({
+            "Parameter": "Q (Seasonal MA Order)",
+            "Value": float(best_params["Q"]),
+            "Explanation": "Number of seasonal lagged forecast errors."
+        })
+        
+        # Model coefficients and standard errors
+        if hasattr(model, 'params') and len(model.params) > 0:
+            for param_name, coeff_val in model.params.items():
+                data.append({
+                    "Parameter": f"{param_name} (Coefficient)",
+                    "Value": float(coeff_val),
+                    "Explanation": "Model coefficient representing the relationship strength."
+                })
+                
+                # Add standard error if available
+                if hasattr(model, 'bse') and param_name in model.bse:
+                    data.append({
+                        "Parameter": f"{param_name} (Std. Error)",
+                        "Value": float(model.bse[param_name]),
+                        "Explanation": "Standard error of the coefficient estimate."
+                    })
+        
+        # Model statistics
+        data.append({
+            "Parameter": "Log Likelihood",
+            "Value": float(model.llf),
+            "Explanation": "Logarithm of the likelihood function; higher values indicate better fit."
+        })
+        data.append({
+            "Parameter": "AIC",
+            "Value": float(model.aic),
+            "Explanation": "Akaike Information Criterion; lower values indicate better model balance of fit and complexity."
+        })
+        data.append({
+            "Parameter": "BIC",
+            "Value": float(model.bic),
+            "Explanation": "Bayesian Information Criterion; lower values indicate better model with penalty for complexity."
+        })
+        data.append({
+            "Parameter": "MSE",
+            "Value": float(model.mse),
+            "Explanation": "Mean Squared Error of residuals; lower values indicate better predictions."
+        })
+        data.append({
+            "Parameter": "MAE",
+            "Value": float(model.mae),
+            "Explanation": "Mean Absolute Error of residuals; lower values indicate better predictions."
+        })
+        
+        # Create DataFrame
+        summary = pd.DataFrame(data)
+        
+        # Ensure proper column order and types
+        expected_columns = ["Parameter", "Value", "Explanation"]
+        if list(summary.columns) != expected_columns:
+            raise knext.InvalidParametersError(f"Model summary columns mismatch. Expected: {expected_columns}, Got: {list(summary.columns)}")
+        
+        # Ensure proper data types
+        summary["Parameter"] = summary["Parameter"].astype(str)
+        summary["Value"] = summary["Value"].astype(float)
+        summary["Explanation"] = summary["Explanation"].astype(str)
 
         return summary
+
+    def __get_optimization_history_table(self, pd):
+        """
+        Creates a DataFrame containing the complete optimization history with all tested models.
+        
+        Parameters:
+        - pd: pandas module
+            Pandas module for DataFrame creation.
+            
+        Returns:
+        - pd.DataFrame
+            DataFrame containing all tested parameter combinations and their metrics.
+        """
+        if not self.optimization_history:
+            # Return empty DataFrame with correct schema if no history
+            empty_df = pd.DataFrame(columns=[
+                "ARIMA_Parameters", "AIC", "BIC", "HQIC", "Log_Likelihood", "Status"
+            ])
+            # Set proper column types to match schema
+            empty_df["ARIMA_Parameters"] = empty_df["ARIMA_Parameters"].astype("string")
+            empty_df["AIC"] = empty_df["AIC"].astype("float64")
+            empty_df["BIC"] = empty_df["BIC"].astype("float64")
+            empty_df["HQIC"] = empty_df["HQIC"].astype("float64")
+            empty_df["Log_Likelihood"] = empty_df["Log_Likelihood"].astype("float64")
+            empty_df["Status"] = empty_df["Status"].astype("string")
+            return empty_df
+        
+        # Create DataFrame from optimization history
+        history_df = pd.DataFrame(self.optimization_history)
+        
+        # Ensure proper column order and types
+        expected_columns = ["ARIMA_Parameters", "AIC", "BIC", "HQIC", "Log_Likelihood", "Status"]
+        if list(history_df.columns) != expected_columns:
+            # Reorder columns to match expected order
+            history_df = history_df[expected_columns]
+        
+        # Ensure proper data types that match KNIME schema
+        history_df["ARIMA_Parameters"] = history_df["ARIMA_Parameters"].astype("string")
+        
+        for col in ["AIC", "BIC", "HQIC", "Log_Likelihood"]:
+            history_df[col] = history_df[col].astype("float64")
+            
+        history_df["Status"] = history_df["Status"].astype("string")
+        
+        # Keep insertion order (chronological order is preserved by list append order)
+        
+        return history_df
+
+    def __enhance_predictions_table(self, model, input_table, pd, input_column):
+        """
+        Create an enhanced predictions table that includes original values, predictions, and residuals.
+        
+        This method automatically excludes the first 2*seasonal_period predictions (or first 10 for 
+        non-seasonal models) as these initial predictions are typically unstable due to parameter 
+        estimation effects and can produce misleadingly high residuals.
+        
+        Parameters:
+        - model: statsmodels.tsa.statespace.sarimax.SARIMAXResults
+            The fitted SARIMAX model object.
+        - input_table: knext.Table
+            The original input table containing the time series data.
+        - input_column: str
+            The name of the target column to extract original values from.
+            
+        Returns:
+        - pd.DataFrame
+            Enhanced predictions DataFrame with stable predictions (excluding initial unstable period).
+        """
+        # Get model predictions and residuals
+        fitted_values = model.fittedvalues
+        residuals = model.resid
+        
+        # Convert input table to pandas to get original values
+        input_df = input_table.to_pandas()
+        
+        # Create enhanced predictions table
+        predictions_data = []
+        
+        # Skip initial unstable period in predictions (same logic as diagnostics)
+        seasonal_period = self.seasonal_period_param
+        skip_initial = max(2 * seasonal_period, self.DEFAULT_SKIP_OBSERVATIONS) if seasonal_period > 0 else self.DEFAULT_SKIP_OBSERVATIONS
+        
+        # Match the length of fitted values (may be shorter due to differencing)
+        start_idx = len(input_df) - len(fitted_values)
+        
+        for i, (fitted_val, residual) in enumerate(zip(fitted_values, residuals)):
+            # Skip initial unstable predictions
+            if i < skip_initial and len(fitted_values) > skip_initial:
+                continue
+                
+            original_idx = start_idx + i
+            if original_idx < len(input_df):
+                # Get the original value from the correct target column
+                original_value = input_df[input_column].iloc[original_idx]
+                
+                # Ensure the original value is numeric - convert safely
+                try:
+                    original_value_float = float(original_value)
+                except (ValueError, TypeError) as e:
+                    # If conversion fails, provide more info about the problematic value
+                    raise knext.InvalidParametersError(
+                        f"Cannot convert value '{original_value}' (type: {type(original_value)}) "
+                        f"from column '{input_column}' to numeric. "
+                        f"Please ensure the selected column contains only numeric values. Error: {str(e)}"
+                    )
+                
+                predictions_data.append({
+                    "Original Value": original_value_float,
+                    "Fitted Value": float(fitted_val),
+                    "Residual": float(residual),
+                    "Absolute Error": float(abs(residual))
+                })
+        
+        predictions_df = pd.DataFrame(predictions_data)
+        
+        # Ensure proper column order and types
+        expected_columns = ["Original Value", "Fitted Value", "Residual", "Absolute Error"]
+        if list(predictions_df.columns) != expected_columns:
+            raise knext.InvalidParametersError(f"Predictions columns mismatch. Expected: {expected_columns}, Got: {list(predictions_df.columns)}")
+        
+        # Ensure all columns are float type
+        for col in expected_columns:
+            predictions_df[col] = predictions_df[col].astype("float64")
+        
+        return predictions_df
+
+    def __compute_residual_diagnostics(self, model, pd):
+        """
+        Computes comprehensive residual diagnostic tests for the fitted ARIMA model.
+        
+        This function performs several statistical tests on the model residuals to assess
+        model adequacy and assumptions:
+        - Ljung-Box test for autocorrelation in residuals
+        - Jarque-Bera test for normality of residuals (sensitive to large samples)
+        - Shapiro-Wilk test for normality (more reliable for smaller to medium samples)
+        
+        Note: Excludes the first 2*seasonal_period observations from testing as these
+        initial predictions are typically unstable due to parameter estimation effects.
+        
+        Parameters:
+        - model: statsmodels.tsa.statespace.sarimax.SARIMAXResults
+            The fitted SARIMAX model object.
+        - pd: pandas module
+            Pandas module for DataFrame creation.
+            
+        Returns:
+        - pd.DataFrame
+            DataFrame containing test names, statistics, p-values, and interpretations.
+        """
+        # Import additional dependencies for diagnostics
+        from statsmodels.stats.diagnostic import acorr_ljungbox
+        from scipy.stats import jarque_bera, shapiro
+        import numpy as np
+        
+        residuals = model.resid
+        
+        # Skip initial unstable period (2x seasonal period)
+        # For non-seasonal models (seasonal_period = 0), skip first DEFAULT_SKIP_OBSERVATIONS as default
+        seasonal_period = self.seasonal_period_param
+        skip_initial = max(2 * seasonal_period, self.DEFAULT_SKIP_OBSERVATIONS) if seasonal_period > 0 else self.DEFAULT_SKIP_OBSERVATIONS
+        
+        # Ensure we have enough observations after skipping
+        if len(residuals) <= skip_initial:
+            # If not enough data, use all residuals but add warning to interpretations
+            stable_residuals = residuals
+            stability_note = " (Warning: Insufficient data to skip initial unstable period)"
+        else:
+            stable_residuals = residuals.iloc[skip_initial:]
+            stability_note = f" (Excluding first {skip_initial} observations)"
+        diagnostics_data = []
+        
+        # Adaptive Ljung-Box test with seasonality-based lag selection
+        try:
+            # Determine optimal lag count based on seasonal period
+            seasonal_period = self.seasonal_period_param
+            
+            if seasonal_period == 0:
+                # Non-seasonal ARIMA: use default 10 lags
+                ljung_box_lags = self.DEFAULT_LJUNG_BOX_LAGS
+                lag_note = f" (using {ljung_box_lags} lags for non-seasonal model)"
+            else:
+                # Seasonal SARIMA: adaptive lag selection to capture seasonal patterns
+                # Use max(10, 1.5 * seasonal_period) but cap at 165 for computational efficiency
+                ljung_box_lags = min(max(self.DEFAULT_LJUNG_BOX_LAGS, int(1.5 * seasonal_period)), 165)
+                lag_note = f" (using {ljung_box_lags} lags for seasonal period s={seasonal_period})"
+            
+            # Use return_df=True to get proper DataFrame output
+            lb_result = acorr_ljungbox(stable_residuals, lags=ljung_box_lags, return_df=True)
+            # Get the test statistic and p-value for the highest lag (last row)
+            lb_stat = float(lb_result['lb_stat'].iloc[-1])
+            lb_pvalue = float(lb_result['lb_pvalue'].iloc[-1])
+            lb_interpretation = ("No autocorrelation" if lb_pvalue > 0.05 else "Autocorrelation detected") + lag_note + stability_note
+            diagnostics_data.append(["Ljung-Box Test", float(lb_stat), float(lb_pvalue), lb_interpretation])
+        except Exception as e:
+            diagnostics_data.append(["Ljung-Box Test", float('nan'), float('nan'), f"Test failed: {str(e)[:50]}"])
+        
+        # Jarque-Bera test for normality
+        try:
+            jb_stat, jb_pvalue = jarque_bera(stable_residuals)
+            
+            # Improve interpretation considering sample size sensitivity
+            n_obs = len(stable_residuals)
+            if n_obs > 500:
+                # For large samples, be more lenient as JB test becomes overly sensitive
+                threshold = 0.01  # More stringent threshold for large samples
+                jb_interpretation = (
+                    f"Residuals approximately normal (n={n_obs}, large sample)" 
+                    if jb_pvalue > threshold 
+                    else f"Residuals deviate from normality (n={n_obs}, JB test sensitive to large samples)"
+                )
+            else:
+                # Standard interpretation for smaller samples
+                threshold = 0.05
+                jb_interpretation = (
+                    f"Residuals are normal (n={n_obs})" 
+                    if jb_pvalue > threshold 
+                    else f"Residuals are non-normal (n={n_obs})"
+                )
+            
+            jb_interpretation += stability_note
+            diagnostics_data.append(["Jarque-Bera Test", float(jb_stat), float(jb_pvalue), jb_interpretation])
+        except Exception as e:
+            diagnostics_data.append(["Jarque-Bera Test", float('nan'), float('nan'), f"Test failed: {str(e)[:50]}"])
+        
+        # Shapiro-Wilk test for normality (more reliable for smaller to medium samples)
+        try:
+            n_obs = len(stable_residuals)
+            if 3 <= n_obs <= 5000:  # Shapiro-Wilk has limitations on sample size
+                sw_stat, sw_pvalue = shapiro(stable_residuals)
+                sw_interpretation = (
+                    f"Residuals are normal (n={n_obs}, Shapiro-Wilk)" 
+                    if sw_pvalue > 0.05 
+                    else f"Residuals are non-normal (n={n_obs}, Shapiro-Wilk)"
+                ) + stability_note
+                diagnostics_data.append(["Shapiro-Wilk Test", float(sw_stat), float(sw_pvalue), sw_interpretation])
+            else:
+                reason = "Too few observations" if n_obs < 3 else "Too many observations (>5000)"
+                diagnostics_data.append(["Shapiro-Wilk Test", float('nan'), float('nan'), f"{reason} for Shapiro-Wilk test"])
+        except Exception as e:
+            diagnostics_data.append(["Shapiro-Wilk Test", float('nan'), float('nan'), f"Test failed: {str(e)[:50]}"])
+        
+        # Create DataFrame
+        diagnostics_df = pd.DataFrame(
+            diagnostics_data,
+            columns=["Test", "Statistic", "P-Value", "Interpretation"]
+        )
+        
+        # Ensure proper column order and types
+        expected_columns = ["Test", "Statistic", "P-Value", "Interpretation"]
+        if list(diagnostics_df.columns) != expected_columns:
+            raise knext.InvalidParametersError(f"Diagnostics columns mismatch. Expected: {expected_columns}, Got: {list(diagnostics_df.columns)}")
+        
+        # Ensure proper data types
+        diagnostics_df["Test"] = diagnostics_df["Test"].astype(str)
+        diagnostics_df["Statistic"] = diagnostics_df["Statistic"].astype(float)
+        diagnostics_df["P-Value"] = diagnostics_df["P-Value"].astype(float)
+        diagnostics_df["Interpretation"] = diagnostics_df["Interpretation"].astype(str)
+        
+        return diagnostics_df
 
     def __find_optimal_integration_params(
         self, series, kpss,
@@ -494,18 +932,21 @@ class AutoSarimaLearner:
 
         seasonality = self.seasonal_period_param
 
-        # Check for seasonal stationarity (D parameter)
-        for _ in range(self.seasonal_params.max_s_i):
-            p_value_d_s = kpss(series)[1]
-            if p_value_d_s >= alpha:
-                break
-            # Apply seasonal differencing
-            series = series.diff(seasonality).dropna()
-            D += 1
+        # Check for seasonal stationarity (D parameter) - only if seasonality > 0
+        if seasonality > 0:
+            for _ in range(self.seasonal_params.max_s_i):
+                kpss_result = kpss(series)
+                p_value_d_s = kpss_result[1]  # Fixed tuple unpacking
+                if p_value_d_s >= alpha:
+                    break
+                # Apply seasonal differencing
+                series = series.diff(seasonality).dropna()
+                D += 1
 
         # Check for trend stationarity (d parameter)
         for _ in range(self.non_seasonal_params.max_i):
-            p_value_d = kpss(series)[1]
+            kpss_result = kpss(series)
+            p_value_d = kpss_result[1]  # Fixed tuple unpacking
             if p_value_d >= alpha:
                 break
             # Apply non seasonal differencing
@@ -544,8 +985,14 @@ class AutoSarimaLearner:
         """
         p = min([self.non_seasonal_params.max_ar, 1])
         q = min([self.non_seasonal_params.max_ma, 1])
-        P = min([self.seasonal_params.max_s_ar, 1])
-        Q = min([self.seasonal_params.max_s_ma, 1])
+        
+        # Only propose seasonal parameters if seasonality > 0
+        if self.seasonal_period_param > 0:
+            P = min([self.seasonal_params.max_s_ar, 1])
+            Q = min([self.seasonal_params.max_s_ma, 1])
+        else:
+            P = 0  # Force to 0 for ARIMA mode
+            Q = 0
 
         return {"p": p, "d": d, "q": q, "P": P, "D": D, "Q": Q}
 
@@ -563,10 +1010,17 @@ class AutoSarimaLearner:
         parameters and randomly decides whether to adjust the non-seasonal (p, q) or seasonal (P, Q)
         orders based on a random threshold. The chosen orders are incremented or decremented by `step_size`
         (randomly chosen direction) or kept the same. The new parameters are constrained within the allowed maximums
-        (max_p, max_q, max_p_s, max_q_s) and non-negativity. Finally, it validates the proposed
-        parameters using `__validate_params`. If the proposed parameters are invalid, it logs a warning
-        and returns the original `current_params`. If the random threshold logic fails to select
-        parameters to update (an edge case), it raises an error.
+        (max_p, max_q, max_p_s, max_q_s) and non-negativity. 
+        
+        ASYMMETRIC CONSTRAINT HANDLING:
+        The function supports asymmetric seasonal constraints where only P or only Q is allowed:
+        - If max_p_s > 0 and max_q_s = 0: Only seasonal AR terms are updated, Q remains 0
+        - If max_p_s = 0 and max_q_s > 0: Only seasonal MA terms are updated, P remains 0  
+        - If both > 0: Both P and Q can be updated
+        - If both = 0: Only non-seasonal parameters (p, q) are updated
+        
+        Finally, it validates the proposed parameters using `__validate_params`. If the proposed parameters 
+        are invalid, it logs a warning and returns the original `current_params`.
 
         Parameters:
         - series: pd.Series
@@ -620,19 +1074,34 @@ class AutoSarimaLearner:
             updated_params["p"], updated_params["q"] = new_p, new_q
 
         elif (
-            threshold > (1 / 2) and (max_p_s > 0 and max_q_s > 0)
-        ):  # update seasonal parameters (P, Q) only if they are not zero (seasonal model)
+            threshold > (1 / 2) and (max_p_s > 0 or max_q_s > 0)
+        ):  # update seasonal parameters (P, Q) if at least one is allowed (fixed: AND -> OR)
+            """
+            FIXED LOGIC: Changed from (max_p_s > 0 and max_q_s > 0) to (max_p_s > 0 or max_q_s > 0)
+            
+            Problem: Original logic required BOTH P and Q to be allowed for any seasonal updates.
+            This failed when user sets asymmetric constraints like:
+            - Max Seasonal AR (P): 1 ✅ (allows seasonal AR)  
+            - Max Seasonal MA (Q): 0 ❌ (disallows seasonal MA)
+            
+            Solution: Now updates seasonal parameters if AT LEAST ONE is allowed.
+            Only modifies parameters that are actually permitted by user constraints.
+            """
             current_ps, current_qs = updated_params["P"], updated_params["Q"]
 
-            new_ps, new_qs = (
-                current_ps + (np.random.choice([-1, 0, 1]) * np.random.choice(steps, size=1)[0]),
-                current_qs + (np.random.choice([-1, 0, 1]) * np.random.choice(steps, size=1)[0]),
-            )
-
-            new_ps = max(min(max_p_s, new_ps), 0)
-            new_qs = max(min(max_q_s, new_qs), 0)
-
-            updated_params["P"], updated_params["Q"] = new_ps, new_qs
+            # Only update P if max_p_s > 0 (user allows seasonal AR terms)
+            if max_p_s > 0:
+                new_ps = current_ps + (np.random.choice([-1, 0, 1]) * np.random.choice(steps, size=1)[0])
+                new_ps = max(min(max_p_s, new_ps), 0)  # Constrain within [0, max_p_s]
+                updated_params["P"] = new_ps
+            # If max_p_s = 0, P remains unchanged at 0
+            
+            # Only update Q if max_q_s > 0 (user allows seasonal MA terms)
+            if max_q_s > 0:
+                new_qs = current_qs + (np.random.choice([-1, 0, 1]) * np.random.choice(steps, size=1)[0])
+                new_qs = max(min(max_q_s, new_qs), 0)  # Constrain within [0, max_q_s]
+                updated_params["Q"] = new_qs
+            # If max_q_s = 0, Q remains unchanged at 0
 
         else:
             raise knext.InvalidParametersError(
@@ -662,18 +1131,19 @@ class AutoSarimaLearner:
         warnings,
         np,
         ConvergenceWarning,
+        track_history=True,
     ):
         """
-        Fits a SARIMAX model with the given parameters and evaluates its AIC score.
+        Fits a SARIMAX model with the given parameters and evaluates its information criterion score.
 
         This function attempts to fit a `statsmodels.tsa.statespace.sarimax.SARIMAX` model
         using the provided time series, parameter dictionary, and seasonality. It captures
-        the Akaike Information Criterion (AIC) as the primary evaluation metric (lower is better).
+        the selected information criterion (AIC, BIC, or HQIC) as the primary evaluation metric (lower is better).
         It specifically checks for `ConvergenceWarning` during fitting using `warnings.catch_warnings`.
         If a `ConvergenceWarning` occurs or any other exception is raised during fitting, it logs a
-        warning via the `exec_context` and returns an infinite AIC score and the potentially partially
+        warning via the `exec_context` and returns an infinite score and the potentially partially
         fitted model object (or None if fitting failed early). This heavily penalizes problematic
-        parameters in the optimization process. Successful fits are also logged with their AIC.
+        parameters in the optimization process. Successful fits are also logged with their score.
 
         Parameters:
         - series: pd.Series
@@ -688,14 +1158,18 @@ class AutoSarimaLearner:
         Returns:
         - tuple (float, statsmodels.tsa.statespace.sarimax.SARIMAXResults or None)
             A tuple containing:
-            - float: The AIC score of the fitted model. Returns `np.inf` if fitting fails or results in a ConvergenceWarning.
+            - float: The information criterion score of the fitted model. Returns `np.inf` if fitting fails or results in a ConvergenceWarning.
             - SARIMAXResults or None: The fitted model object if successful, otherwise None or the object from a failed/non-converged fit.
         """
-        aic_score = np.inf
+        ic_score = np.inf
         convergence_warning_occurred = False
         model_fit = None  # Initialize model_fit to handle potential early exceptions
 
         seasonality = self.seasonal_period_param
+        
+        # Get the selected criterion
+        criterion = self.model_selection_params.selection_criterion
+        criterion_value = ModelSelectionParams.SelectionCriteria[criterion].value[0].lower()
 
         try:
             # Use catch_warnings to capture any warnings during fit()
@@ -708,7 +1182,21 @@ class AutoSarimaLearner:
                     seasonal_order=(params["P"], params["D"], params["Q"], seasonality),
                 )
                 model_fit = model.fit(disp=False)
-                aic_score = model_fit.aic
+                
+                # Check for degenerate log-likelihood (exclude models with log-likelihood ≈ 0)
+                if abs(model_fit.llf) < 1e-6:
+                    LOGGER.info(f"Rejecting model with degenerate log-likelihood: {model_fit.llf} for params {params}")
+                    ic_score = np.inf
+                else:
+                    # Get the appropriate information criterion
+                    if criterion_value == "aic":
+                        ic_score = model_fit.aic
+                    elif criterion_value == "bic":
+                        ic_score = model_fit.bic  
+                    elif criterion_value == "hqic":
+                        ic_score = model_fit.hqic
+                    else:
+                        ic_score = model_fit.aic  # fallback
 
                 # Check if any ConvergenceWarning was caught
                 for warning in caught_warnings:
@@ -718,12 +1206,29 @@ class AutoSarimaLearner:
 
         except Exception as e:
             # Handle potential errors during model fitting (e.g., invalid parameters)
+            LOGGER.warning(f"Model fitting failed for params {params}: {str(e)}")
             exec_context.set_warning(
-                f"WARNING Error fitting SARIMAX with params {params}: {e}"
+                f"WARNING: SARIMAX model fitting failed with parameters {params}. "
+                f"Error: {str(e)}. This may indicate numerical issues with large seasonal periods "
+                f"or insufficient data for the model complexity."
             )
+            
+            # Store optimization history for completely failed models
+            if track_history:
+                seasonality = self.seasonal_period_param
+                arima_notation = f"({params['p']},{params['d']},{params['q']})({params['P']},{params['D']},{params['Q']},{seasonality})"
+                self.optimization_history.append({
+                    "ARIMA_Parameters": str(arima_notation),
+                    "AIC": float(np.inf),
+                    "BIC": float(np.inf),
+                    "HQIC": float(np.inf),
+                    "Log_Likelihood": float(np.inf),
+                    "Status": str(f"Fitting Failed: {str(e)[:100]}")
+                })
+            
             return (
                 np.inf,
-                model_fit,  # Return potentially partially fitted model or None
+                None,  # Explicitly return None when fitting fails completely
             )  # Treat errors as convergence issues or high cost
 
         if convergence_warning_occurred:
@@ -731,16 +1236,43 @@ class AutoSarimaLearner:
             LOGGER.info(
                 f"ConvergenceWarning occurred for params {params}. Model fitting failed, returning infinity."
             )
+            
+            # Store optimization history even for failed models
+            if track_history:
+                seasonality = self.seasonal_period_param
+                arima_notation = f"({params['p']},{params['d']},{params['q']})({params['P']},{params['D']},{params['Q']},{seasonality})"
+                self.optimization_history.append({
+                    "ARIMA_Parameters": str(arima_notation),
+                    "AIC": float(np.inf),
+                    "BIC": float(np.inf),
+                    "HQIC": float(np.inf),
+                    "Log_Likelihood": float(np.inf),
+                    "Status": str("Convergence Failed")
+                })
+            
             return (
                 np.inf,
                 model_fit,
             )  # Return the model_fit object even if convergence failed
 
         LOGGER.info(
-            f"Model fitted successfully for params {params}, AIC: {aic_score}"
+            f"Model fitted successfully for params {params}, {criterion_value.upper()}: {ic_score}"
         )
+        
+        # Store optimization history for successful models
+        if track_history:
+            seasonality = self.seasonal_period_param
+            arima_notation = f"({params['p']},{params['d']},{params['q']})({params['P']},{params['D']},{params['Q']},{seasonality})"
+            self.optimization_history.append({
+                "ARIMA_Parameters": str(arima_notation),
+                "AIC": float(model_fit.aic),
+                "BIC": float(model_fit.bic),
+                "HQIC": float(model_fit.hqic),
+                "Log_Likelihood": float(model_fit.llf),
+                "Status": str("Success")
+            })
 
-        return (aic_score, model_fit)
+        return (ic_score, model_fit)
 
     def __accept_new_params(self, delta_cost, beta, np):
         """
@@ -786,11 +1318,11 @@ class AutoSarimaLearner:
         ConvergenceWarning,
     ):
         """
-        Performs hyperparameter optimization for the SARIMA model using a simulated annealing algorithm.
+        Optimizes SARIMA parameters using intelligent simulated annealing search.
 
-        This function searches for the optimal combination of non-seasonal (p, q) and seasonal (P, Q)
-        parameters within the constraints provided by the user in the configuration dialogue. The differencing orders (d, D)
-        are determined beforehand using `find_optimal_integration_params` and remain fixed.
+        Automatically determines optimal model parameters through a sophisticated two-phase approach:
+        stationarity testing (d,D) followed by simulated annealing optimization (p,q,P,Q). The 
+        algorithm balances exploration and exploitation to find globally optimal solutions.
 
         The algorithm works as follows:
         1. Determine initial d and D using KPSS tests (`find_optimal_integration_params`).
@@ -866,7 +1398,6 @@ class AutoSarimaLearner:
         current_params = self.__propose_initial_params(
             d, D
         )
-
         LOGGER.info(
             f"Initial parameters: {current_params}. Evaluating initial model based on the AIC..."
         )
@@ -882,11 +1413,22 @@ class AutoSarimaLearner:
 
         # Handle case where initial evaluation fails
         if current_cost == np.inf:
-            LOGGER.info(
-                f"Initial model evaluation failed (AIC=inf) for params {current_params}. Trying a simpler model (0,{d},0)(0,{D},0)..."
-            )
-            # Try a very simple model as fallback
-            fallback_params = {"p": 0, "d": d, "q": 0, "P": 0, "D": D, "Q": 0}
+            # Try a smarter fallback based on user constraints
+            if self.non_seasonal_params.max_ar > 0:
+                fallback_params = {"p": 1, "d": d, "q": 0, "P": 0, "D": D, "Q": 0}
+                LOGGER.info(f"Initial model evaluation failed (AIC=inf) for params {current_params}. Trying AR(1) fallback model...")
+            elif self.non_seasonal_params.max_ma > 0:
+                fallback_params = {"p": 0, "d": d, "q": 1, "P": 0, "D": D, "Q": 0}
+                LOGGER.info(f"Initial model evaluation failed (AIC=inf) for params {current_params}. Trying MA(1) fallback model...")
+            elif self.seasonal_params.max_s_ar > 0:
+                fallback_params = {"p": 0, "d": d, "q": 0, "P": 1, "D": D, "Q": 0}
+                LOGGER.info(f"Initial model evaluation failed (AIC=inf) for params {current_params}. Trying SAR(1) fallback model...")
+            elif self.seasonal_params.max_s_ma > 0:
+                fallback_params = {"p": 0, "d": d, "q": 0, "P": 0, "D": D, "Q": 1}
+                LOGGER.info(f"Initial model evaluation failed (AIC=inf) for params {current_params}. Trying SMA(1) fallback model...")
+            else:
+                fallback_params = {"p": 0, "d": d, "q": 0, "P": 0, "D": D, "Q": 0}
+                LOGGER.info(f"Initial model evaluation failed (AIC=inf) for params {current_params}. Trying random walk model (0,{d},0)(0,{D},0)...")
             # Validate fallback params before trying to fit
             if self.__validate_params(
                 series,
@@ -907,7 +1449,7 @@ class AutoSarimaLearner:
                 )[0]
                 if current_cost == np.inf:
                     raise RuntimeError(
-                        f"Even the simplest fallback model (0,{d},0)(0,{D},0) failed to fit. Cannot proceed with optimization."
+                        f"Even the fallback model {fallback_params} failed to fit. Cannot proceed with optimization. Try to apply a log-transformation to the series to allow the algorithm to start"
                     )
                 else:
                     LOGGER.info(
@@ -916,7 +1458,7 @@ class AutoSarimaLearner:
             else:
                 # If even the fallback is invalid (e.g., series too short), raise error
                 raise RuntimeError(
-                    f"Initial parameters {current_params} failed to fit and fallback parameters (0,{d},0)(0,{D},0) are invalid for the series length. Cannot proceed."
+                    f"Initial parameters {current_params} failed to fit and fallback parameters {fallback_params} are invalid for the series length. Cannot proceed."
                 )
 
         LOGGER.info(
@@ -930,8 +1472,13 @@ class AutoSarimaLearner:
         # create a set of parameters already proposed by the algorithm
         proposed_params_cache = set()
 
+        # Early stopping variables
+        early_stopping_patience = self.optimization_loop_params.early_stopping_patience
+        steps_without_improvement = 0
+        last_best_cost = best_cost
+
         # Main loop of the simulated annealing process: Loop over the betas (the list of tolerances for moves that increase the cost)
-        for beta in beta_list:
+        for i, beta in enumerate(beta_list):
             # At each beta record the acceptance rate using a counter for the number of accepted moves
             accepted_moves = 0
             # For each beta, perform a number of MCMC steps
@@ -981,12 +1528,29 @@ class AutoSarimaLearner:
                         best_params = current_params.copy()
 
             # Dynamic progress update based on the current beta
-            exec_context.set_progress(progress[beta_list.tolist().index(beta)])
+            exec_context.set_progress(progress[i])
 
             # Print in the console the current beta, the acceptance rate, and the best parameters found so far
             LOGGER.info(
-                f"Iteration: {beta_list.tolist().index(beta) + 1}, beta: {beta}, accept_freq: {accepted_moves / mcmc_steps}, best params: {best_params}, best cost: {best_cost}"
+                f"Iteration: {i + 1}, beta: {beta}, accept_freq: {accepted_moves / mcmc_steps}, best params: {best_params}, best cost: {best_cost}"
             )
+            
+            # Early stopping logic
+            if early_stopping_patience > 0:
+                if best_cost < last_best_cost:
+                    # Improvement found, reset counter
+                    steps_without_improvement = 0
+                    last_best_cost = best_cost
+                else:
+                    # No improvement
+                    steps_without_improvement += 1
+                    
+                if steps_without_improvement >= early_stopping_patience:
+                    LOGGER.info(
+                        f"Early stopping triggered: No improvement for {early_stopping_patience} consecutive steps. "
+                        f"Best parameters: {best_params}, best cost: {best_cost}"
+                    )
+                    break
 
         # Return the best instance
         LOGGER.debug(

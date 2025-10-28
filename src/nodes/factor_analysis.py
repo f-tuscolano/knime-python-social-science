@@ -8,24 +8,24 @@ LOGGER = logging.getLogger(__name__)
 @knext.parameter_group(label="Rotation Settings",)
 class RotationSettings:
     """
-    These parameters control the rotation method applied to the analysis results.
+    Rotation methods to enhance component/factor interpretability. Rotations redistribute variance among components to achieve simpler structure with clearer variable-component relationships.
     """
     class RotationMethods(knext.EnumParameterOptions):
         NO_ROTATION = (
             "None",
-            "Do not apply any rotation; use the raw loadings."
+            "No rotation applied - use raw unrotated loadings. Components remain orthogonal but may be difficult to interpret."
         )
         VARIMAX = (
             "Varimax",
-            "An orthogonal rotation that maximizes the variance of squared loadings, so that each component loads highly on a small number of variables."
+            "Orthogonal rotation maximizing variance of squared loadings within components. Creates simple structure where each variable loads highly on few components. Most popular choice."
         )
         PROMAX = (
             "Promax",
-            "An oblique rotation that first performs Varimax, then raises loadings to a power to allow correlated components."
+            "Oblique rotation allowing correlated components. First applies Varimax, then relaxes orthogonality constraint. Use when components are expected to correlate."
         )
         QUARTIMAX = (
             "Quartimax",
-            "An orthogonal rotation that maximizes the variance of squared loadings across variables."
+            "Orthogonal rotation maximizing variance of squared loadings across variables. Emphasizes general factors. Less commonly used than Varimax."
         )
     rotation_method = knext.EnumParameter(
         label="Select a rotation method",
@@ -42,92 +42,82 @@ class AnalysisMethod(knext.EnumParameterOptions):
 @knext.node(
     name="Factor Analyzer",
     node_type=knext.NodeType.LEARNER,
-    icon_path="correspondence.png",
+    icon_path="../icons/icon.png",
     category=social_science_ext.main_category,
     id="factor_analysis",
 )
 @knext.input_table(
     name="Input Data",
-    description="Table containing one or more numeric columns for factor analysis.",
+    description="Numeric data table for dimensionality reduction or factor analysis. Must contain at least two numeric columns with sufficient observations. Missing values are automatically handled by row-wise deletion.",
 )
 @knext.output_table(
-    name="Model fit",
-    description="Model fit statistics: eigenvalues and variance ratios for PCA methods, log-likelihood for Factor Analysis.",
+    name="Model Fit",
+    description="Model performance metrics and variance decomposition: eigenvalues and explained variance ratios (PCA methods), log-likelihood values (Factor Analysis). Used to assess model quality and determine optimal component count.",
 )
 @knext.output_table(
     name="Component Loadings",
-    description="Loadings of each input variable on the principal components, including communalities (explained variance) and noise variance (unique variance).",
+    description="Variable-component relationships matrix showing rotated loadings, communalities (shared variance), and noise variance (unique variance). Essential for interpreting which variables define each component/factor.",
 )
 @knext.output_binary(
     name="Model",
-    description="Pickled factor analysis model object that can be used by predictor nodes to transform new data.",
+    description="Trained dimensionality reduction model object with rotation matrices and preprocessing parameters. Ready for transforming new data with predictor nodes.",
     id="factor_analysis.model",
 )
 
 class FactorAnalysisNode:
     """
-    A KNIME learner node that performs Principal Component Analysis (PCA) or Exploratory Factor Analysis (EFA) on numeric input data.
-    This node is designed to extract latent structure from multivariate numeric datasets by projecting them into a lower-dimensional space. It supports several rotation methods to enhance interpretability of the components or factors.
+    ## Advanced Dimensionality Reduction and Factor Analysis
 
-    **Model Overview:**
-    This node supports three analysis methods:
-    
-    - **Standard PCA**: Reduces dimensionality by finding orthogonal axes (principal components) that explain the most variance.
-    - **Incremental PCA**: Memory-efficient PCA for large datasets that cannot fit in memory.
-    - **Exploratory Factor Analysis**: Uses maximum likelihood estimation to identify latent factors that explain correlations among observed variables.
+    Performs Principal Component Analysis (PCA) and Exploratory Factor Analysis (EFA) to extract latent structure from multivariate datasets. Reduces dimensionality while preserving interpretable patterns through advanced rotation methods.
 
-    **Rotation**: Improves interpretability of the component/factor loadings by applying orthogonal or oblique rotations (Varimax, Promax, Quartimax).
+    ## Analysis Methods
 
-    The node outputs:
-    - Model fit statistics including eigenvalues for PCA methods and log-likelihood for Factor Analysis.
-    - Rotated component/factor loadings with communalities and noise variance for each input variable.
-    - A pickled model object for downstream transformation of new data.
+    - **PCA**: Orthogonal decomposition finding components that maximize variance
+    - **Incremental PCA**: Memory-efficient streaming PCA for large datasets
+    - **Exploratory Factor Analysis**: Maximum likelihood estimation of latent factors
+    - **Rotation Options**: Varimax, Promax, Quartimax for enhanced interpretability
 
-    **Model Fit Table:**
-    - **Dimension**: Component/factor number (1, 2, 3... for PCA; selected number of factors for Factor Analysis).
-    - **Eigenvalue**: Variance explained by each component (PCA methods only; 0 for Factor Analysis).
-    - **Explained Variance Ratio**: Proportion of total variance explained by each component (PCA methods only; 0 for Factor Analysis).
-    - **Cumulative Explained Variance**: Cumulative proportion of variance explained (PCA methods only; 0 for Factor Analysis).
-    - **Log-Likelihood**: Maximum likelihood value for model goodness-of-fit (Factor Analysis only; 0 for PCA methods).
+    ## Configuration Options
 
-    **Component Loadings Table:**
-    - **Variable**: Name of the input feature.
-    - **Communalities**: Sum of squared loadings across all factors; indicates how much variance in each variable is explained by the factor solution (range 0-1).
-    - **Noise Variance**: Complement of communalities (1 - communalities); represents the unique variance in each variable not explained by the common factors.
-    - **Loading (PC#)**: The loading of the variable on each principal component/factor after rotation.
+    - **Analysis Method**: Choose between PCA variants and factor analysis
+    - **Component Count**: Manual specification or automatic selection
+    - **Variable Selection**: Multi-column picker with numeric filtering
+    - **Standardization**: Optional z-score normalization
+    - **Rotation Method**: Orthogonal or oblique rotation for interpretability
 
-    **Rotation Methods:**
-    - **None**: No rotation; raw loadings are used.
-    - **Varimax**: Orthogonal rotation maximizing variance of squared loadings (simplifies columns).
-    - **Promax**: Oblique rotation allowing correlated components (applies Varimax, then raises loadings to a power).
-    - **Quartimax**: Orthogonal rotation maximizing variance of squared loadings across variables (simplifies rows).
+    ## Output Components
 
-    **Variance Components Interpretation:**
-    - **Communalities**: High values (>0.7) indicate variables well-represented by the factor solution; low values (<0.3) suggest need for additional factors.
-    - **Noise Variance**: High values (>0.7) indicate substantial unique variance; low values (<0.3) suggest the variable is well-explained by common factors.
-    - **For PCA**: Communalities often close to 1.0, noise variance close to 0.0 since PCA explains maximum variance.
-    - **For Factor Analysis**: More moderate values expected, representing the distinction between common and unique variance.
+    **Model Fit Statistics**:
+    - Eigenvalues and explained variance ratios (PCA methods)
+    - Log-likelihood values (Factor Analysis)
+    - Component selection diagnostics
 
-    **Computational Details:**
-    - Handles missing values by dropping rows with NaNs in selected columns.
-    - Automatically limits the number of components to the number of selected features.
-    - Flips the sign of loadings for each component if the sum is less than 1, for consistency.
-    - Stores the fitted model, rotation matrix, and scaling parameters for later use.
+    **Component Loadings Matrix**:
+    - Variable-component relationship coefficients (rotated or unrotated loadings)
+    - Communalities (captured variance of each variable)
+    - Noise variance (unexplained variance of each variable)
 
-    **Model Output for Scoring:**
-    The binary model output contains comprehensive information for downstream prediction:
-    - Fitted model object (sklearn PCA/IncrementalPCA/FactorAnalysis)
-    - Rotated and unrotated loadings matrices
-    - Rotation transformation matrix and method
-    - Preprocessing parameters (standardization means/scales)
-    - Variance statistics (eigenvalues, explained variance ratios)
-    - Feature column names and analysis method identifier
+    **Model Object**:
+    - Trained model with transformation parameters
 
-    **References:**
-    - Jolliffe, I. T. (2002). *Principal Component Analysis* (2nd ed.). Springer.
-    - Abdi, H., & Williams, L. J. (2010). Principal component analysis. *Wiley Interdisciplinary Reviews: Computational Statistics*, 2(4), 433–459.
-    - Bartholomew, D. J., et al. (2011). *Analysis of Multivariate Social Science Data* (2nd ed.). Chapman and Hall/CRC.
-    - Fabrigar, L. R., & Wegener, D. T. (2012). *Exploratory Factor Analysis*. Oxford University Press.
+    ## Model Selection Criteria:
+    - **Scree Plot**: Look for "elbow" in eigenvalue decline
+    - **Cumulative Variance**: Aim for 60-80% in most applications
+    - **Interpretability**: Factors should have clear conceptual meaning
+
+    ## Use Cases
+
+    - **Data Reduction**: Compress high-dimensional datasets while preserving structure
+    - **Pattern Discovery**: Identify underlying factors in survey and behavioral data
+    - **Feature Engineering**: Create meaningful composite variables from raw measurements
+    - **Exploratory Analysis**: Understand correlation patterns and variable clustering
+    - **Scale Validation**: Test theoretical factor structures in psychometric research
+
+    ## References
+
+    - Jolliffe, I. T. (2002). *Principal Component Analysis* (2nd ed.). Springer
+    - Fabrigar, L. R., & Wegener, D. T. (2012). *Exploratory Factor Analysis*. Oxford University Press
+    - Bartholomew, D. J., et al. (2011). *Analysis of Multivariate Social Science Data* (2nd ed.). CRC Press
     """
     analysis_method = knext.EnumParameter(
         label="Analysis Method",
@@ -142,20 +132,19 @@ class FactorAnalysisNode:
         min_value=1,
         max_value=1000,
     )
-    
-    features_cols = knext.MultiColumnParameter(
-        label="Numeric Input Columns",
-        description="Select two or more numeric columns to include in the factor analysis.",
-        column_filter=kutil.is_numeric,
-    )
-    
+
+    rotation_settings = RotationSettings()
+
     standardize_column = knext.BoolParameter(
         label="Standardize input data",
         description="Optionally standardize the input data before applying factor analysis.",
         default_value=True,
     )
-    
-    rotation_settings = RotationSettings()
+    features_cols = knext.MultiColumnParameter(
+        label="Numeric Input Columns",
+        description="Select two or more numeric columns to include in the factor analysis.",
+        column_filter=kutil.is_numeric,
+    )
 
     def configure(self, configure_context: knext.ConfigurationContext, input_schema: knext.Schema):
         num_cols = len(self.features_cols)
@@ -375,5 +364,4 @@ class FactorAnalysisNode:
             knext.Table.from_pandas(variance_df),
             knext.Table.from_pandas(loadings_df),
             model_binary,
-
         )

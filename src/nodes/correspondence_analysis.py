@@ -8,71 +8,96 @@ LOGGER = logging.getLogger(__name__)
 @knext.node(
     name="Correspondence Analyzer",
     node_type=knext.NodeType.LEARNER,
-    icon_path="correspondence.png", 
+    icon_path="../icons/icon.png",
     category=social_science_ext.main_category,
     id="correspondence_analysis",
 )
 @knext.input_table(
     name="Input Data",
-    description="Table containing two or more categorical columns for Correspondence Analysis or MCA.",
+    description="Categorical data table for association analysis. Must contain at least two categorical (string) columns with minimum 2 unique values each. Automatically selects CA (2 variables) or MCA (3+ variables).",
 )
 @knext.output_table(
     name="Variance Explained",
-    description="Contains the eigenvalues, proportion of variance explained by each dimension, and cumulative variance.",
+    description="Eigenvalue decomposition results showing dimension importance: eigenvalues, explained variance ratios, and cumulative variance. Used to assess dimensionality reduction quality and determine optimal number of dimensions.",
 )
 @knext.output_table(
     name="Model Summary",
-    description="Reports statistics for each modality (category) including mass, contribution, coordinates, and representation quality (cos²)",
+    description="Complete modality-level statistics including mass (frequency), point inertia (χ² contribution), coordinates (position), contributions (dimension importance), and cos² (representation quality). Essential for interpreting category relationships.",
 )
 @knext.output_image(
     name="Factor Map",
-    description=" A 2D plot showing modality positions and groupings in the factor space.",
+    description="2D biplot visualization displaying category positions in the first two factorial dimensions. Point size reflects category frequency, distances indicate similarity, and positioning reveals association patterns.",
 )
 class CorrespondenceAnalysisNode:
     """
-    A KNIME learner node that performs Correspondence Analysis (CA) or Multiple Correspondence Analysis (MCA) on categorical data to reveal latent associations and patterns within multivariate categorical datasets.
+    Reveals hidden associations and patterns in categorical data through geometric data analysis, automatically selecting between Correspondence Analysis (CA) and Multiple Correspondence Analysis (MCA) based on input complexity.
 
-    **Model Overview:**
-    This node implements geometric data analysis techniques to transform categorical variables into a continuous Euclidean space, enabling visualization and quantitative analysis of relationships between categories. The algorithm automatically selects the appropriate method based on input dimensionality:
+    ## Analysis Methods
 
-    - **Correspondence Analysis (CA)**: Applied to exactly two categorical variables, analyzing their association through a contingency table decomposition.
-    - **Multiple Correspondence Analysis (MCA)**: Applied to three or more categorical variables using complete disjunctive coding and generalized singular value decomposition.
+    **Correspondence Analysis (CA)** - Applied to exactly two categorical variables:
+    - Decomposes contingency tables using chi-square distance metrics
+    - Reveals association patterns between categories of two variables
+    - Optimal for exploring relationships in cross-tabulated data
 
-    Both methods employ chi-square distance metrics to preserve the relative frequencies and associations inherent in the categorical data structure, projecting high-dimensional categorical information into interpretable lower-dimensional factorial spaces.
+    **Multiple Correspondence Analysis (MCA)** - Applied to three or more categorical variables:
+    - Uses complete disjunctive coding and generalized singular value decomposition
+    - Extends CA to multivariate categorical datasets
+    - Applies Benzécri correction to adjust for eigenvalue inflation
 
-    **Output Specifications:**
+    ## Mathematical Foundation
 
-    **Variance Explained Table:**
-    Contains eigenvalue decomposition results with proportion and cumulative variance explained by each extracted dimension, enabling assessment of dimensionality reduction quality.
+    Both methods transform categorical variables into continuous Euclidean space through:
+    - **Chi-square distance preservation** to maintain relative frequency relationships
+    - **Standardized residuals decomposition** for metric consistency
+    - **Optimal scaling theory** to project high-dimensional categorical information
+    - **Singular value decomposition** to extract principal dimensions
 
-    **Model Summary Table (Modality-Level Statistics):**
-    - **Modality**: Categorical level identifier from the input variables
-    - **Mass**: Marginal relative frequency of the modality in the dataset
+    ## Configuration Options
+
+    - **Input Columns**: Two or more categorical variables (string type)
+    - **Output Dimensions**: Number of principal axes to compute (1-100)
+    - **Automatic Method Selection**: CA for 2 variables, MCA for 3+ variables
+    - **Missing Value Handling**: Automatically treated as "missing" category
+
+    ## Analysis Outputs
+
+    1. **Variance Explained Table**: Eigenvalues, proportion and cumulative variance by dimension
+    2. **Model Summary Table**: Complete modality statistics with coordinates and quality measures
+    3. **Factor Map Visualization**: 2D biplot showing category relationships and groupings
+
+    ## Model Summary Statistics
+
+    - **Mass**: Marginal relative frequency in the dataset
     - **Point Inertia**: Absolute contribution to total inertia (χ² distance from independence)
-    - **Contribution (Dim #)**: Relative contribution percentage to each dimension's inertia
-    - **Coordinate (Dim #)**: Principal coordinate position along each extracted dimension
-    - **cos² (Dim #)**: Squared correlation (representation quality) between modality and dimension
+    - **Contribution**: Relative contribution percentage to each dimension's variance
+    - **Coordinate**: Principal coordinate position along each extracted dimension
+    - **cos² (Quality)**: Representation quality - squared correlation between modality and dimension
 
-    **Factor Map Visualization:**
-    Biplot representation displaying modality positions in the first two factorial dimensions, with point sizing proportional to mass and positioning reflecting similarity relationships.
+    ## Factor Map Reading:
 
-    **Computational Implementation:**
-    - Applies Benzécri correction to eigenvalues in MCA to adjust for inflation due to multiple coding
-    - Implements numerical stability controls for near-zero eigenvalues
-    - Automatically determines optimal dimensionality based on data matrix rank
-    - Uses standardized residuals and chi-square decomposition for metric preservation
+    - **Distance**: Closer categories are more similar/associated and tend to co-occur
+    - **Origin Proximity**: Categories near origin are average/neutral, less distinctive
 
-    **Theoretical Foundation:**
-    Based on the correspondence analysis framework developed by Jean-Paul Benzécri, extending classical multivariate analysis to categorical data through geometric interpretation of chi-square statistics and optimal scaling theory.
+    ## Quality Assessment:
+    
+    - **High cos²** (>0.5): Category well-represented by dimension
+    - **High Contribution** (>average): Category defines the dimension meaning
+    - **Cumulative Variance**: Percentage of associations explained by retained dimensions
 
-    **References:**
-    - Benzécri, J. P. (1973). *L'Analyse des Données, Volume 2: L'Analyse des Correspondances*. Dunod.
-    - Greenacre, M. (2017). *Correspondence Analysis in Practice* (3rd ed.). Chapman and Hall/CRC.
-    - Le Roux, B., & Rouanet, H. (2010). *Multiple Correspondence Analysis*. SAGE Publications.
+    ## Use Cases
+
+    - **Market Research**: Customer segmentation, brand perception, purchase behavior analysis
+    - **Social Sciences**: Survey analysis, demographic patterns, attitude research
+    - **Healthcare**: Patient profiling, treatment outcomes, risk factor analysis
+    - **Education**: Student performance patterns, curriculum effectiveness assessment
+    - **Quality Control**: Defect pattern analysis, process improvement identification
+    - **Text Mining**: Document classification, topic modeling, content analysis
+
+    **Note:** Method automatically determined by input dimensionality. Requires minimum 2 categories per variable.
     """
     n_components = knext.IntParameter(
         label="Number of Output Dimensions",
-        description="Specify how many principal dimensions (axes) to compute for the analysis. This determines how much of the total inertia (variance) is retained in the lower-dimensional output.",
+        description="Principal dimensions to extract from the analysis. More dimensions capture additional variance but increase complexity. Typical choices: 2-3 for visualization, 5-10 for detailed analysis. Cannot exceed (min(categories)-1) due to mathematical rank constraints.",
         default_value=2,
         min_value=1,
         max_value=100,
@@ -80,7 +105,7 @@ class CorrespondenceAnalysisNode:
 
     features_cols = knext.MultiColumnParameter(
         label="Categorical Input Columns",
-        description="Select one or more categorical columns to include in the correspondence analysis",
+        description="Categorical variables for association analysis. Minimum 2 columns required, each with at least 2 unique values. Missing values automatically treated as 'missing' category. Method selection: CA (exactly 2 columns) or MCA (3+ columns).",
         column_filter=kutil.is_string,
     )
 
@@ -122,21 +147,56 @@ class CorrespondenceAnalysisNode:
         max_dims = self.n_components
 
         if df.size == 0:
-            raise ValueError("Input table is empty. Please provide data to analyze.")
+            raise knext.InvalidParametersError("Input table is empty. Please provide categorical data with at least 2 rows and 2 columns for correspondence analysis.")
 
         if len(dimensions) < 2:
-            raise ValueError(
-                "Please select at least two categorical columns for analysis."
+            raise knext.InvalidParametersError(
+                "Correspondence analysis requires at least 2 categorical columns. "
+                "Please select additional categorical variables to analyze associations between categories."
             )
         
         if len(dimensions) < max_dims:
-            raise ValueError(
-                f"Please select at least {max_dims} categorical columns for analysis."
+            raise knext.InvalidParametersError(
+                f"Cannot extract {max_dims} dimensions from {len(dimensions)} variables. "
+                f"Maximum extractable dimensions ≤ min(categories per variable) - 1. "
+                f"Either reduce 'Number of Output Dimensions' or add more categorical columns."
             )
 
+        # Check category counts and issue performance warnings
+        total_categories = 0
+        high_cardinality_cols = []
+        
         for col in dimensions:
-            if dimension_df[col].nunique() < 2:
-                raise ValueError(f"Column '{col}' must have at least 2 unique values.")
+            unique_count = dimension_df[col].nunique()
+            if unique_count < 2:
+                raise knext.InvalidParametersError(
+                    f"Column '{col}' has only {unique_count} unique value(s). "
+                    f"Each categorical variable must have at least 2 different categories for meaningful analysis. "
+                    f"Consider removing this column or combining rare categories."
+                )
+            
+            total_categories += unique_count
+            if unique_count > 50:
+                high_cardinality_cols.append(f"{col} ({unique_count} categories)")
+        
+        # Performance warning for high-cardinality categorical data
+        if total_categories > 200 or high_cardinality_cols:
+            exec_context.set_warning(
+                f"⚠️ PERFORMANCE WARNING: High categorical complexity detected.\n"
+                f"Total categories across all variables: {total_categories}\n"
+                f"High-cardinality columns: {', '.join(high_cardinality_cols) if high_cardinality_cols else 'None'}\n\n"
+                f"This may cause:\n"
+                f"• Slow computation and high memory usage\n"
+                f"• Overcrowded visualizations difficult to interpret\n"
+                f"• Numerical instability in eigenvalue decomposition\n\n"
+                f"RECOMMENDED SOLUTIONS:\n"
+                f"1. Group rare categories into 'Other' category (keep top 10-20 per variable)\n"
+                f"2. Focus on most important categorical variables\n"
+                f"3. Use hierarchical coding (e.g., Country→Region)\n"
+                f"4. Consider reducing 'Number of Output Dimensions'\n"
+                f"5. Filter data to most relevant category subsets"
+            )
+            LOGGER.warning(f"High cardinality warning: {total_categories} total categories, high-cardinality columns: {high_cardinality_cols}")
 
         # The CA (Correspondence analysis) computation follows the standard mathematical formulation as described in:
         # Greenacre, M. (2017). Correspondence analysis in practice (3rd ed.). Chapman and Hall/CRC.
@@ -164,9 +224,12 @@ class CorrespondenceAnalysisNode:
             )
 
             if len(eigenvals) < max_dims:
-                raise ValueError(
-                    f"Only {len(eigenvals)} components could be computed after filtering the eigenvalues close to zero. "
-                    f"Requested {max_dims}, but data rank is lower. Your data has low variance. Try adding another categorical column or using columns with more unique values."
+                raise knext.InvalidParametersError(
+                    f"Insufficient data complexity for {max_dims} dimensions. Only {len(eigenvals)} meaningful components available after filtering near-zero eigenvalues. "
+                    f"This indicates low categorical associations or insufficient variability. "
+                    f"Solutions: (1) Reduce 'Number of Output Dimensions' to {len(eigenvals)} or less, "
+                    f"(2) Add more categorical columns with diverse categories, "
+                    f"(3) Check for columns with mostly uniform distributions."
                 )
 
             total_inertia = np.sum(all_eigenvals)
@@ -208,7 +271,11 @@ class CorrespondenceAnalysisNode:
             )  # DataFrame with .columns
 
             if z_df.shape[1] == 0:
-                raise ValueError("MCA failed: no valid one-hot encoded features found.")
+                raise knext.InvalidParametersError(
+                    "MCA encoding failed: No categorical features could be converted to indicator variables. "
+                    "This typically occurs when all selected columns are empty or contain only missing values. "
+                    "Please verify your categorical columns contain valid category data."
+                )
 
             K = len(dimensions)  # number of original categorical variables
 
@@ -526,26 +593,24 @@ class CorrespondenceAnalysisNode:
             buf.getvalue(),
         )
 
-    ## Shared methods for both CA and MCA
+    ## Shared computational methods for CA and MCA
     def _normalize_to_correspondence_matrix(self, table, pd, np):
         """
-        Convert counts to proportions by dividing the table by its total sum.
-        This gives us the correspondence matrix P:
-
-        P = N / n
-        Where:
-        - N = original table (e.g. contingency or indicator)
-        - n = total sum of all values in the table
+        Normalizes count data to correspondence matrix by converting frequencies to proportions.
+        
+        Creates the fundamental correspondence matrix P = N/n where N is the original 
+        contingency/indicator table and n is the grand total. This normalization ensures
+        the analysis focuses on relative associations rather than absolute frequencies.
         """
         return table.to_numpy().astype(float) / table.to_numpy().sum()
 
     def _compute_masses(self, matrix, np):
         """
-        Get the row and column totals (called "masses"):
-        - Row mass r[i] = sum of row i
-        - Column mass c[j] = sum of column j
-
-        These represent how much each row/column contributes overall.
+        Computes marginal masses (row and column totals) representing relative importance.
+        
+        Row masses r[i] and column masses c[j] indicate how much each category contributes
+        to the overall dataset. These masses weight the chi-square distance calculations
+        and determine category positioning in the factorial space.
         """
         row_masses = matrix.sum(axis=1)
         col_masses = matrix.sum(axis=0)
