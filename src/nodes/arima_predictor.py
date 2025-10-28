@@ -1,6 +1,5 @@
 import logging
 import knime.extension as knext
-from util import utils as kutil
 import social_science_ext
 
 LOGGER = logging.getLogger(__name__)

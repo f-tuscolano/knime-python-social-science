@@ -243,7 +243,7 @@ class AutoSarimaLearner:
 **Common Seasonal Periods by Data Granularity:**
 • **Monthly data with yearly seasonality**: Set to 12 (12 months = 1 year)
 • **Weekly data with yearly seasonality**: Set to 52 (52 weeks = 1 year)
-• **Daily data with weekly seasonality**: Set to 7 (7 days = 1 week)  
+• **Daily data with weekly seasonality**: Set to 7 (7 days = 1 week)
 • **Hourly data with daily seasonality**: Set to 24 (24 hours = 1 day)
 • **Quarterly data with yearly seasonality**: Set to 4 (4 quarters = 1 year)
 • **Minute data with hourly seasonality**: Set to 60 (60 minutes = 1 hour)
@@ -784,7 +784,6 @@ class AutoSarimaLearner:
         # Import additional dependencies for diagnostics
         from statsmodels.stats.diagnostic import acorr_ljungbox
         from scipy.stats import jarque_bera, shapiro
-        import numpy as np
 
         residuals = model.resid
 
@@ -1063,12 +1062,11 @@ class AutoSarimaLearner:
         elif threshold > (1 / 2) and (max_p_s > 0 or max_q_s > 0):  # update seasonal parameters (P, Q) if at least one is allowed (fixed: AND -> OR)
             """
             FIXED LOGIC: Changed from (max_p_s > 0 and max_q_s > 0) to (max_p_s > 0 or max_q_s > 0)
-            
+            <br>
             Problem: Original logic required BOTH P and Q to be allowed for any seasonal updates.
             This failed when user sets asymmetric constraints like:
-            - Max Seasonal AR (P): 1 ✅ (allows seasonal AR)  
-            - Max Seasonal MA (Q): 0 ❌ (disallows seasonal MA)
-            
+            -Max Seasonal AR (P): 1 ✅ (allows seasonal AR)
+            -Max Seasonal MA (Q): 0 ❌ (disallows seasonal MA)
             Solution: Now updates seasonal parameters if AT LEAST ONE is allowed.
             Only modifies parameters that are actually permitted by user constraints.
             """
