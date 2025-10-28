@@ -12,11 +12,11 @@ The project's goal is to integrate advanced statistical methodologies within KNI
 
 * **Auto-SARIMA Predictor**: Generates future forecasts using a pre-trained SARIMA model from the Auto-SARIMA Learner node.
 
-* **Correspondence Analysis**: Performs Correspondence Analysis (CA) or Multiple Correspondence Analysis (MCA) on categorical data to explore associations between variables. Automatically selects the appropriate method based on input dimensionality.
+* **Correspondence Analyzer**: Performs Correspondence Analysis (CA) or Multiple Correspondence Analysis (MCA) on categorical data to explore associations between variables. Automatically selects the appropriate method based on input dimensionality.
 
 * **Factor Analyzer**: Trains a dimensionality-reduction model using either Principal Component Analysis (PCA) or Exploratory Factor Analysis (EFA). Supports optional component/factor rotation for interpretability (varimax, promax, quartimax) and incremental PCA for large datasets.
 
-* **Factor Scorer**: Applies a trained PCA or EFA model to new datasets, projecting data onto the learned components or factors. Maintains full mathematical consistency with all model variants including rotated solutions and incremental PCA.
+* **Factor Predictor**: Applies a trained PCA or EFA model to new datasets, projecting data onto the learned components or factors. Maintains full mathematical consistency with all model variants including rotated solutions and incremental PCA.
 
 ## Package Organization
 
