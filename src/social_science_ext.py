@@ -54,5 +54,6 @@ main_category = knext.category(
     level_id="socialscience",
     name="Social Science Extension",
     description="Nodes for Statistical Analysis",
-    icon="icons/Analytics.png",
+    icon="icons/FactorAnalyzer.png",
 )
+
