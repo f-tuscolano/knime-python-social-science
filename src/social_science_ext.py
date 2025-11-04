@@ -56,4 +56,3 @@ main_category = knext.category(
     description="Nodes for Statistical Analysis",
     icon="icons/FactorAnalyzer.png",
 )
-
