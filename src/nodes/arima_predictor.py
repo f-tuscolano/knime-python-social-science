@@ -11,6 +11,14 @@ LOGGER = logging.getLogger(__name__)
     icon_path="icons/AutoSARIMAPredictor.png",
     category=social_science_ext.main_category,
     id="auto_sarima_predictor",
+    keywords=[
+        "ARIMA",
+        "SARIMA",
+        "Time Series",
+        "Forecasting",
+        "Seasonal",
+        "Autoregressive",
+    ],
 )
 @knext.input_binary(
     name="Model Input",

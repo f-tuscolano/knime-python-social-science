@@ -10,6 +10,13 @@ LOGGER = logging.getLogger(__name__)
     node_type=knext.NodeType.PREDICTOR,
     icon_path="icons/FactorPredictor.png",
     category=social_science_ext.main_category,
+    keywords=[
+        "Factor Scores",
+        "PCA Transform",
+        "Factor Predictor",
+        "Component Scores",
+        "Dimensionality Reduction",
+    ],
     id="factor_predictor",
 )
 @knext.input_table(
@@ -69,8 +76,6 @@ class FactorScorerNode:
     ## Configuration Options
 
     - **Component Count**: Specify number of factors/components to output (≤ training model components)
-    - **Automatic Validation**: Ensures requested components don't exceed model capacity
-    - **Column Naming**: Uses FC (Factor Component) prefix for universal compatibility
 
     ## Use Cases
 
@@ -216,8 +221,14 @@ class FactorScorerNode:
 
         # Build output table with appropriate column naming
         # Use FC (Factor Component) as a general term that works for both PCA and EFA
+        # Create columns based on n_components and drop excess columns after scoring
         score_columns = [f"FC{i + 1}" for i in range(max_dims)]
+        
+        # Drop excess columns if scores has more columns than requested
+        if scores.shape[1] > max_dims:
+            scores = scores[:, :max_dims]
+        
         scores_df = pd.DataFrame(scores, columns=score_columns)
-        final_df = pd.concat([result_df, scores_df], axis=1)
+        final_df = pd.concat([result_df, scores_df], axis=1).reset_index(drop=True)
 
         return knext.Table.from_pandas(final_df)

@@ -140,6 +140,14 @@ class OptimizationLoopParams:
     node_type=knext.NodeType.LEARNER,
     icon_path="icons/AutoSARIMALearner.png",
     category=social_science_ext.main_category,
+    keywords=[
+        "ARIMA",
+        "SARIMA",
+        "Time Series",
+        "Forecasting",
+        "Seasonal",
+        "Autoregressive",
+    ],
     id="auto_sarima_learner",
 )
 @knext.input_table(

@@ -48,6 +48,14 @@ class AnalysisMethod(knext.EnumParameterOptions):
     node_type=knext.NodeType.LEARNER,
     icon_path="icons/FactorAnalyzer.png",
     category=social_science_ext.main_category,
+    keywords=[
+        "Factor Analysis",
+        "PCA",
+        "Principal Component",
+        "Dimensionality Reduction",
+        "Varimax",
+        "Exploratory Factor Analysis",
+    ],
     id="factor_analysis",
 )
 @knext.input_table(

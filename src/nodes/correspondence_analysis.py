@@ -11,6 +11,14 @@ LOGGER = logging.getLogger(__name__)
     node_type=knext.NodeType.LEARNER,
     icon_path="icons/CorrespondenceAnalyzer.png",
     category=social_science_ext.main_category,
+    keywords=[
+        "Correspondence Analysis",
+        "CA",
+        "MCA",
+        "Categorical Data",
+        "Association Analysis",
+        "Dimensionality Reduction",
+    ],
     id="correspondence_analysis",
 )
 @knext.input_table(
