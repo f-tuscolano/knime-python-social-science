@@ -45,6 +45,14 @@
 import knime.extension as knext
 import os
 
+main_category = knext.category(
+    path="/community",
+    level_id="socialscience",
+    name="Social Science Extension",
+    description="Nodes for Statistical Analysis",
+    icon="icons/FactorAnalyzer.png",
+)
+
 # Set gRPC to use the native DNS resolver (getaddrinfo()) for better compatibility
 # with diverse network configurations, including those using NetBIOS or custom DNS setups.
 os.environ["GRPC_DNS_RESOLVER"] = "native"
@@ -55,10 +63,3 @@ import nodes.correspondence_analysis
 import nodes.factor_analysis
 import nodes.factor_scorer  # noqa: F401
 
-main_category = knext.category(
-    path="/community",
-    level_id="socialscience",
-    name="Social Science Extension",
-    description="Nodes for Statistical Analysis",
-    icon="icons/FactorAnalyzer.png",
-)
