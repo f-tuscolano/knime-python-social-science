@@ -61,4 +61,5 @@ import nodes.arima_learner  # noqa: E402
 import nodes.arima_predictor  # noqa: E402
 import nodes.correspondence_analysis  # noqa: E402
 import nodes.factor_analysis  # noqa: E402
-import nodes.factor_scorer  # noqa: E402
+import nodes.factor_scorer  # noqa: E402, F401
+
