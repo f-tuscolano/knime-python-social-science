@@ -92,7 +92,7 @@ class OptimizationLoopParams:
 
     anneal_steps = knext.IntParameter(
         label="Number of Annealing Steps",
-        description="Temperature schedule length for optimization. More steps provide thorough search but increase runtime. Default (6) balances quality and speed for most applications.",
+        description="Temperature schedule length for optimization. More steps provide thorough search but increase runtime. Default (5) balances quality and speed for most applications.",
         default_value=5,
         min_value=2,
         is_advanced=True,
@@ -272,7 +272,7 @@ class AutoSarimaLearner:
 - **Set to 0** to disable seasonal components and fit a standard ARIMA model first
 
 **Example**: If analyzing monthly sales data that peaks every December, use seasonal period = 12 to capture the yearly pattern.""",
-        default_value=2,
+        default_value=0,
         min_value=0,
     )
     natural_log = knext.BoolParameter(
@@ -1526,3 +1526,4 @@ class AutoSarimaLearner:
         # Return the best instance
         LOGGER.debug(f"Optimization finished. Final best parameters: {best_params} with AIC: {best_cost:.2f}")
         return best_params
+
