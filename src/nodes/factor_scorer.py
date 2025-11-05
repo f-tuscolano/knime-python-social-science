@@ -223,11 +223,10 @@ class FactorScorerNode:
         # Use FC (Factor Component) as a general term that works for both PCA and EFA
         # Create columns based on n_components and drop excess columns after scoring
         score_columns = [f"FC{i + 1}" for i in range(max_dims)]
-        
+
         # Drop excess columns if scores has more columns than requested
         if scores.shape[1] > max_dims:
             scores = scores[:, :max_dims]
-        
         scores_df = pd.DataFrame(scores, columns=score_columns)
         final_df = pd.concat([result_df, scores_df], axis=1).reset_index(drop=True)
 

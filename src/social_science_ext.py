@@ -43,15 +43,6 @@
 # ------------------------------------------------------------------------
 
 import knime.extension as knext
-
-main_category = knext.category(
-    path="/community",
-    level_id="socialscience",
-    name="Social Science Extension",
-    description="Nodes for Statistical Analysis",
-    icon="icons/FactorAnalyzer.png",
-)
-
 import os
 
 # Set gRPC to use the native DNS resolver (getaddrinfo()) for better compatibility
@@ -63,3 +54,11 @@ import nodes.arima_predictor
 import nodes.correspondence_analysis
 import nodes.factor_analysis
 import nodes.factor_scorer
+
+main_category = knext.category(
+    path="/community",
+    level_id="socialscience",
+    name="Social Science Extension",
+    description="Nodes for Statistical Analysis",
+    icon="icons/FactorAnalyzer.png",
+)
