@@ -1526,4 +1526,3 @@ class AutoSarimaLearner:
         # Return the best instance
         LOGGER.debug(f"Optimization finished. Final best parameters: {best_params} with AIC: {best_cost:.2f}")
         return best_params
-
