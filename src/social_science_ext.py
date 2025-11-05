@@ -53,7 +53,7 @@ import nodes.arima_learner
 import nodes.arima_predictor
 import nodes.correspondence_analysis
 import nodes.factor_analysis
-import nodes.factor_scorer
+import nodes.factor_scorer  # noqa: F401
 
 main_category = knext.category(
     path="/community",

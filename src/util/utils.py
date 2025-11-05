@@ -7,7 +7,6 @@ import knime.extension as knext
 import pandas as pd
 from typing import Callable
 import logging
-import numpy as np
 
 LOGGER = logging.getLogger(__name__)
 
