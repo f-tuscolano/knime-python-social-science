@@ -2,7 +2,7 @@
 # It is used to define the extension's metadata and configuration.
 
 # Extension metadata
-name:  social_science  # Will be concatenated with the group_id to an ID
+name:  social-science  # Will be concatenated with the group_id to an ID
 group_id: uni.bocconi
 description: KNIME Nodes to perform Social Science analysis. # Human readable bundle name / description
 long_description:  It allows researchers and analysts to integrate multivariate statistical methods in KNIME.
