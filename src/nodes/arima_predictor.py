@@ -112,14 +112,18 @@ class SarimaForcaster:
 
         # Extract point forecasts and confidence intervals
         point_forecasts = forecast_result.predicted_mean
-        confidence_intervals = forecast_result.conf_int(alpha=1-self.confidence_level)
+        confidence_intervals = forecast_result.conf_int(alpha=1 - self.confidence_level)
 
-        exec_context.set_progress(0.6)        # Create output DataFrame
-        output_df = pd.DataFrame({
-            "Forecasts": point_forecasts.values,
-            "Lower_CI": confidence_intervals.iloc[:, 0].values,
-            "Upper_CI": confidence_intervals.iloc[:, 1].values,
-        })
+        exec_context.set_progress(0.6)
+
+        # Create output DataFrame
+        output_df = pd.DataFrame(
+            {
+                "Forecasts": point_forecasts.values,
+                "Lower_CI": confidence_intervals.iloc[:, 0].values,
+                "Upper_CI": confidence_intervals.iloc[:, 1].values,
+            }
+        )
 
         # Reverse log transformation for forecasts and confidence intervals
         if self.natural_log:
@@ -145,25 +149,26 @@ class SarimaForcaster:
         forecast_index = range(len(historical_data), len(historical_data) + self.number_of_forecasts)
 
         # Plot historical data
-        ax.plot(historical_index, historical_data, 'b-', label='Historical Data', linewidth=1.5)
+        ax.plot(historical_index, historical_data, "b-", label="Historical Data", linewidth=1.5)
 
         # Plot forecasts
-        ax.plot(forecast_index, output_df["Forecasts"], 'ro-', label='Forecasts', markersize=4)
-        
+        ax.plot(forecast_index, output_df["Forecasts"], "ro-", label="Forecasts", markersize=4)
+
         # Plot confidence intervals as shaded area
         confidence_pct = int(self.confidence_level * 100)
-        ax.fill_between(forecast_index, output_df["Lower_CI"], output_df["Upper_CI"],
-                       alpha=0.3, color='red', label=f'{confidence_pct}% Confidence Interval')
+        ax.fill_between(
+            forecast_index, output_df["Lower_CI"], output_df["Upper_CI"], alpha=0.3, color="red", label=f"{confidence_pct}% Confidence Interval"
+        )
 
-        ax.set_title('ARIMA Forecast with Confidence Intervals')
-        ax.set_xlabel('Time')
-        ax.set_ylabel('Value')
+        ax.set_title("ARIMA Forecast with Confidence Intervals")
+        ax.set_xlabel("Time")
+        ax.set_ylabel("Value")
         ax.legend()
         ax.grid(True, alpha=0.3)
 
         # Save plot to buffer
         buf = BytesIO()
-        fig.savefig(buf, format="svg", bbox_inches='tight')
+        fig.savefig(buf, format="svg", bbox_inches="tight")
         buf.seek(0)
         plt.close(fig)
 
