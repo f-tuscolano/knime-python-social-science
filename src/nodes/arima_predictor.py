@@ -109,14 +109,12 @@ class SarimaForcaster:
 
         # Generate forecasts with confidence intervals using get_forecast
         forecast_result = trained_model.get_forecast(steps=self.number_of_forecasts)
-        
+
         # Extract point forecasts and confidence intervals
         point_forecasts = forecast_result.predicted_mean
         confidence_intervals = forecast_result.conf_int(alpha=1-self.confidence_level)
-        
-        exec_context.set_progress(0.6)
 
-        # Create output DataFrame
+        exec_context.set_progress(0.6)        # Create output DataFrame
         output_df = pd.DataFrame({
             "Forecasts": point_forecasts.values,
             "Lower_CI": confidence_intervals.iloc[:, 0].values,
@@ -136,33 +134,33 @@ class SarimaForcaster:
 
         # Create forecast plot
         fig, ax = plt.subplots(figsize=(12, 6))
-        
+
         # Get real historical data from the trained model
         historical_data = trained_model.data.endog
         if self.natural_log:
             historical_data = np.exp(historical_data)
-        
+
         # Create time index starting from 0
         historical_index = range(len(historical_data))
         forecast_index = range(len(historical_data), len(historical_data) + self.number_of_forecasts)
-        
+
         # Plot historical data
         ax.plot(historical_index, historical_data, 'b-', label='Historical Data', linewidth=1.5)
-        
+
         # Plot forecasts
         ax.plot(forecast_index, output_df["Forecasts"], 'ro-', label='Forecasts', markersize=4)
         
         # Plot confidence intervals as shaded area
         confidence_pct = int(self.confidence_level * 100)
-        ax.fill_between(forecast_index, output_df["Lower_CI"], output_df["Upper_CI"], 
+        ax.fill_between(forecast_index, output_df["Lower_CI"], output_df["Upper_CI"],
                        alpha=0.3, color='red', label=f'{confidence_pct}% Confidence Interval')
-        
-        ax.set_title(self.plot_title)
+
+        ax.set_title('ARIMA Forecast with Confidence Intervals')
         ax.set_xlabel('Time')
         ax.set_ylabel('Value')
         ax.legend()
         ax.grid(True, alpha=0.3)
-        
+
         # Save plot to buffer
         buf = BytesIO()
         fig.savefig(buf, format="svg", bbox_inches='tight')
