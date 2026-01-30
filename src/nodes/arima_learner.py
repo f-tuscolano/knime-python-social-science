@@ -152,11 +152,11 @@ class OptimizationLoopParams:
 )
 @knext.input_table(
     name="Input Data",
-    description="Time series data table for training the Auto-SARIMA model. Must contain at least one numeric column without missing values to serve as the target variable for forecasting.",
+    description="Time series data table for training the Auto-SARIMA model. The selected target column must be numeric and contain no missing values.",
 )
 @knext.output_table(
     name="In-sample Predictions and Residuals",
-    description="Model fit quality assessment table containing original values, fitted predictions, residuals, and absolute errors. Initial unstable predictions (first 2×seasonal period) are excluded to ensure reliable performance metrics.",
+    description="Model fit quality assessment table containing original values, fitted predictions, residuals, and absolute errors. Initial unstable predictions (first max(2 * seasonal period, 10) observations; 10 for non-seasonal models) are excluded to ensure reliable performance metrics.",
 )
 @knext.output_table(
     name="Coefficients and Statistics",
@@ -277,7 +277,7 @@ class AutoSarimaLearner:
     )
     natural_log = knext.BoolParameter(
         label="Log-transform data for modelling",
-        description="Apply natural logarithm transformation before modeling to stabilize variance. Useful for data with exponential growth or multiplicative seasonality. Requires all positive values. Results are automatically back-transformed.",
+        description="Apply natural logarithm transformation before modeling to stabilize variance (requires all values > 0). Fitted values are back-transformed in the in-sample output; residuals and residual-based diagnostics remain on the log scale.",
         default_value=False,
     )
 
@@ -358,31 +358,29 @@ class AutoSarimaLearner:
 
         exec_context.set_progress(0.1)
 
-        # check if the number of obsevations is not lower than seasonality
-        if len(target_col) < self.seasonal_period_param:
-            raise knext.InvalidParametersError(
-                f"The number of observations in the target column ({len(target_col)}) is lower than the seasonal period ({self.seasonal_period_param})."
+        # check if the number of obsevations is greater than or equal to twice the seasonal period
+        if len(target_col) < 2 * self.seasonal_period_param:
+            LOGGER.warning(
+                f"The number of observations in the target column ({len(target_col)}) is lower than twice the seasonal period ({self.seasonal_period_param}). This may lead to unreliable model estimates and forecasts."
             )
+            exec_context.set_warning(
+                f"The number of observations in the target column ({len(target_col)}) is lower than twice the seasonal period ({self.seasonal_period_param}). This may lead to unreliable model estimates and forecasts."
+            )
+            if len(target_col) < self.seasonal_period_param:
+                raise knext.InvalidParametersError(
+                    f"The number of observations in the target column ({len(target_col)}) is lower than twice the seasonal period ({self.seasonal_period_param})."
+                )
+
+        # Check for missing values
+        kutil.validate_missing_values(target_col)
 
         # Add performance warning for large seasonal periods
-        if self.seasonal_period_param > 100:
-            exec_context.set_warning(
-                f"⚠️ PERFORMANCE WARNING: Large seasonal period detected ({self.seasonal_period_param}). "
-                f"This will cause severe computational issues:\n"
-                f"• Extremely slow model fitting (potentially hours)\n"
-                f"• Risk of system freeze or out-of-memory errors\n\n"
-                f"• High memory consumption that may exhaust available RAM\n"
-                f"• Potential numerical instability and fitting failures\n"
-                f"RECOMMENDED SOLUTIONS:\n"
-                f"1. Use Fourier Transform or STL decomposition to remove long-term seasonality first\n"
-                f"2. Aggregate data to reduce seasonal period (daily→weekly: s=52, daily→monthly: s=12)\n"
-                f"3. Focus on dominant seasonality (e.g., weekly s=7 instead of yearly s=365)\n"
-                f"Consider canceling execution if you have limited computational resources."
-            )
-            LOGGER.warning(f"Large seasonal period warning issued for seasonality = {self.seasonal_period_param}")
-
-        # check for missing values
-        self.__validate_col(target_col)
+        kutil.seasonality_performance_warning(
+            context=exec_context,
+            LOGGER=LOGGER,
+            seasonality=self.seasonal_period_param,
+            seasonality_warning_threshold=100,
+        )
 
         exec_context.set_progress(0.2)
 
@@ -423,7 +421,9 @@ class AutoSarimaLearner:
         exec_context.set_progress(0.9)
 
         # Create enhanced predictions table with original values
-        enhanced_predictions = self.__enhance_predictions_table(trained_model, input, pd, self.input_column)
+        enhanced_predictions = kutil.enhance_predictions_table(
+            trained_model, input, self.input_column, self.seasonal_period_param, self.DEFAULT_SKIP_OBSERVATIONS, pd
+        )
 
         # Apply log transformation reverse if needed
         if self.natural_log:
@@ -433,8 +433,9 @@ class AutoSarimaLearner:
         # populate model coefficients and statistics with enhanced formatting
         coeffs_and_stats = self.__get_coeffs_and_stats(trained_model, best_params, pd)
 
-        # generate residual diagnostics
-        residual_diagnostics = self.__compute_residual_diagnostics(trained_model, pd)
+        residual_diagnostics = kutil.compute_residual_diagnostics(
+            trained_model, self.seasonal_period_param, self.DEFAULT_SKIP_OBSERVATIONS, self.DEFAULT_LJUNG_BOX_LAGS, pd
+        )
 
         # generate optimization history table
         optimization_history = self.__get_optimization_history_table(pd)
@@ -450,25 +451,6 @@ class AutoSarimaLearner:
             knext.Table.from_pandas(optimization_history, row_ids="keep"),
             model_binary,
         )
-
-    def __validate_col(self, column):
-        """
-        Validates input time series for missing values.
-
-        SARIMA models require complete time series data without gaps. This method checks for
-        any missing (NaN) values and raises an error if found, preventing model fitting failures.
-
-        Parameters:
-        - column: pd.Series
-            Time series data to validate for completeness.
-
-        Raises:
-        - knext.InvalidParametersError
-            If missing values are detected, with count information.
-        """
-        if kutil.check_missing_values(column):
-            missing_count = kutil.count_missing_values(column)
-            raise knext.InvalidParametersError(f"""There are "{missing_count}" number of missing values in the target column.""")
 
     def __validate_params(self, column, p, q, P, Q):
         """
@@ -518,16 +500,14 @@ class AutoSarimaLearner:
         Compiles comprehensive model summary with parameters, coefficients, and fit statistics.
 
         Creates a detailed table containing the optimal SARIMA parameters, all model coefficients
-        with their standard errors, and key goodness-of-fit metrics. Each entry includes explanatory
-        text to help interpret the results.
+        with their standard errors. Key goodness-of-fit metrics are obtained from utility get_model_stats.
+        Each entry includes explanatory text to help interpret the results.
 
         Parameters:
         - model: statsmodels.tsa.statespace.sarimax.SARIMAXResults
             Fitted SARIMA model containing coefficients and statistics.
         - best_params: dict
             Optimal parameters: {"p": int, "d": int, "q": int, "P": int, "D": int, "Q": int}.
-        - pd: pandas module
-            Pandas module for DataFrame creation.
 
         Returns:
         - pd.DataFrame
@@ -589,57 +569,7 @@ class AutoSarimaLearner:
                         }
                     )
 
-        # Model statistics
-        data.append(
-            {
-                "Parameter": "Log Likelihood",
-                "Value": float(model.llf),
-                "Explanation": "Logarithm of the likelihood function; higher values indicate better fit.",
-            }
-        )
-        data.append(
-            {
-                "Parameter": "AIC",
-                "Value": float(model.aic),
-                "Explanation": "Akaike Information Criterion; lower values indicate better model balance of fit and complexity.",
-            }
-        )
-        data.append(
-            {
-                "Parameter": "BIC",
-                "Value": float(model.bic),
-                "Explanation": "Bayesian Information Criterion; lower values indicate better model with penalty for complexity.",
-            }
-        )
-        data.append(
-            {
-                "Parameter": "MSE",
-                "Value": float(model.mse),
-                "Explanation": "Mean Squared Error of residuals; lower values indicate better predictions.",
-            }
-        )
-        data.append(
-            {
-                "Parameter": "MAE",
-                "Value": float(model.mae),
-                "Explanation": "Mean Absolute Error of residuals; lower values indicate better predictions.",
-            }
-        )
-
-        # Create DataFrame
-        summary = pd.DataFrame(data)
-
-        # Ensure proper column order and types
-        expected_columns = ["Parameter", "Value", "Explanation"]
-        if list(summary.columns) != expected_columns:
-            raise knext.InvalidParametersError(f"Model summary columns mismatch. Expected: {expected_columns}, Got: {list(summary.columns)}")
-
-        # Ensure proper data types
-        summary["Parameter"] = summary["Parameter"].astype(str)
-        summary["Value"] = summary["Value"].astype(float)
-        summary["Explanation"] = summary["Explanation"].astype(str)
-
-        return summary
+        return kutil.get_model_stats(model, data)
 
     def __get_optimization_history_table(self, pd):
         """
@@ -685,210 +615,6 @@ class AutoSarimaLearner:
         # Keep insertion order (chronological order is preserved by list append order)
 
         return history_df
-
-    def __enhance_predictions_table(self, model, input_table, pd, input_column):
-        """
-        Create an enhanced predictions table that includes original values, predictions, and residuals.
-
-        This method automatically excludes the first 2*seasonal_period predictions (or first 10 for
-        non-seasonal models) as these initial predictions are typically unstable due to parameter
-        estimation effects and can produce misleadingly high residuals.
-
-        Parameters:
-        - model: statsmodels.tsa.statespace.sarimax.SARIMAXResults
-            The fitted SARIMAX model object.
-        - input_table: knext.Table
-            The original input table containing the time series data.
-        - input_column: str
-            The name of the target column to extract original values from.
-
-        Returns:
-        - pd.DataFrame
-            Enhanced predictions DataFrame with stable predictions (excluding initial unstable period).
-        """
-        # Get model predictions and residuals
-        fitted_values = model.fittedvalues
-        residuals = model.resid
-
-        # Convert input table to pandas to get original values
-        input_df = input_table.to_pandas()
-
-        # Create enhanced predictions table
-        predictions_data = []
-
-        # Skip initial unstable period in predictions (same logic as diagnostics)
-        seasonal_period = self.seasonal_period_param
-        skip_initial = max(2 * seasonal_period, self.DEFAULT_SKIP_OBSERVATIONS) if seasonal_period > 0 else self.DEFAULT_SKIP_OBSERVATIONS
-
-        # Match the length of fitted values (may be shorter due to differencing)
-        start_idx = len(input_df) - len(fitted_values)
-
-        for i, (fitted_val, residual) in enumerate(zip(fitted_values, residuals)):
-            # Skip initial unstable predictions
-            if i < skip_initial and len(fitted_values) > skip_initial:
-                continue
-
-            original_idx = start_idx + i
-            if original_idx < len(input_df):
-                # Get the original value from the correct target column
-                original_value = input_df[input_column].iloc[original_idx]
-
-                # Ensure the original value is numeric - convert safely
-                try:
-                    original_value_float = float(original_value)
-                except (ValueError, TypeError) as e:
-                    # If conversion fails, provide more info about the problematic value
-                    raise knext.InvalidParametersError(
-                        f"Cannot convert value '{original_value}' (type: {type(original_value)}) "
-                        f"from column '{input_column}' to numeric. "
-                        f"Please ensure the selected column contains only numeric values. Error: {str(e)}"
-                    )
-
-                predictions_data.append(
-                    {
-                        "Original Value": original_value_float,
-                        "Fitted Value": float(fitted_val),
-                        "Residual": float(residual),
-                        "Absolute Error": float(abs(residual)),
-                    }
-                )
-
-        predictions_df = pd.DataFrame(predictions_data)
-
-        # Ensure proper column order and types
-        expected_columns = ["Original Value", "Fitted Value", "Residual", "Absolute Error"]
-        if list(predictions_df.columns) != expected_columns:
-            raise knext.InvalidParametersError(f"Predictions columns mismatch. Expected: {expected_columns}, Got: {list(predictions_df.columns)}")
-
-        # Ensure all columns are float type
-        for col in expected_columns:
-            predictions_df[col] = predictions_df[col].astype("float64")
-
-        return predictions_df
-
-    def __compute_residual_diagnostics(self, model, pd):
-        """
-        Computes comprehensive residual diagnostic tests for the fitted ARIMA model.
-
-        This function performs several statistical tests on the model residuals to assess
-        model adequacy and assumptions:
-        - Ljung-Box test for autocorrelation in residuals
-        - Jarque-Bera test for normality of residuals (sensitive to large samples)
-        - Shapiro-Wilk test for normality (more reliable for smaller to medium samples)
-
-        Note: Excludes the first 2*seasonal_period observations from testing as these
-        initial predictions are typically unstable due to parameter estimation effects.
-
-        Parameters:
-        - model: statsmodels.tsa.statespace.sarimax.SARIMAXResults
-            The fitted SARIMAX model object.
-        - pd: pandas module
-            Pandas module for DataFrame creation.
-
-        Returns:
-        - pd.DataFrame
-            DataFrame containing test names, statistics, p-values, and interpretations.
-        """
-        # Import additional dependencies for diagnostics
-        from statsmodels.stats.diagnostic import acorr_ljungbox
-        from scipy.stats import jarque_bera, shapiro
-
-        residuals = model.resid
-
-        # Skip initial unstable period (2x seasonal period)
-        # For non-seasonal models (seasonal_period = 0), skip first DEFAULT_SKIP_OBSERVATIONS as default
-        seasonal_period = self.seasonal_period_param
-        skip_initial = max(2 * seasonal_period, self.DEFAULT_SKIP_OBSERVATIONS) if seasonal_period > 0 else self.DEFAULT_SKIP_OBSERVATIONS
-
-        # Ensure we have enough observations after skipping
-        if len(residuals) <= skip_initial:
-            # If not enough data, use all residuals but add warning to interpretations
-            stable_residuals = residuals
-            stability_note = " (Warning: Insufficient data to skip initial unstable period)"
-        else:
-            stable_residuals = residuals.iloc[skip_initial:]
-            stability_note = f" (Excluding first {skip_initial} observations)"
-        diagnostics_data = []
-
-        # Adaptive Ljung-Box test with seasonality-based lag selection
-        try:
-            # Determine optimal lag count based on seasonal period
-            seasonal_period = self.seasonal_period_param
-
-            if seasonal_period == 0:
-                # Non-seasonal ARIMA: use default 10 lags
-                ljung_box_lags = self.DEFAULT_LJUNG_BOX_LAGS
-                lag_note = f" (using {ljung_box_lags} lags for non-seasonal model)"
-            else:
-                # Seasonal SARIMA: adaptive lag selection to capture seasonal patterns
-                # Use max(10, 1.5 * seasonal_period) but cap at 165 for computational efficiency
-                ljung_box_lags = min(max(self.DEFAULT_LJUNG_BOX_LAGS, int(1.5 * seasonal_period)), 165)
-                lag_note = f" (using {ljung_box_lags} lags for seasonal period s={seasonal_period})"
-
-            # Use return_df=True to get proper DataFrame output
-            lb_result = acorr_ljungbox(stable_residuals, lags=ljung_box_lags, return_df=True)
-            # Get the test statistic and p-value for the highest lag (last row)
-            lb_stat = float(lb_result["lb_stat"].iloc[-1])
-            lb_pvalue = float(lb_result["lb_pvalue"].iloc[-1])
-            lb_interpretation = ("No autocorrelation" if lb_pvalue > 0.05 else "Autocorrelation detected") + lag_note + stability_note
-            diagnostics_data.append(["Ljung-Box Test", float(lb_stat), float(lb_pvalue), lb_interpretation])
-        except Exception as e:
-            diagnostics_data.append(["Ljung-Box Test", float("nan"), float("nan"), f"Test failed: {str(e)[:50]}"])
-
-        # Jarque-Bera test for normality
-        try:
-            jb_stat, jb_pvalue = jarque_bera(stable_residuals)
-
-            # Improve interpretation considering sample size sensitivity
-            n_obs = len(stable_residuals)
-            if n_obs > 500:
-                # For large samples, be more lenient as JB test becomes overly sensitive
-                threshold = 0.01  # More stringent threshold for large samples
-                jb_interpretation = (
-                    f"Residuals approximately normal (n={n_obs}, large sample)"
-                    if jb_pvalue > threshold
-                    else f"Residuals deviate from normality (n={n_obs}, JB test sensitive to large samples)"
-                )
-            else:
-                # Standard interpretation for smaller samples
-                threshold = 0.05
-                jb_interpretation = f"Residuals are normal (n={n_obs})" if jb_pvalue > threshold else f"Residuals are non-normal (n={n_obs})"
-
-            jb_interpretation += stability_note
-            diagnostics_data.append(["Jarque-Bera Test", float(jb_stat), float(jb_pvalue), jb_interpretation])
-        except Exception as e:
-            diagnostics_data.append(["Jarque-Bera Test", float("nan"), float("nan"), f"Test failed: {str(e)[:50]}"])
-
-        # Shapiro-Wilk test for normality (more reliable for smaller to medium samples)
-        try:
-            n_obs = len(stable_residuals)
-            if 3 <= n_obs <= 5000:  # Shapiro-Wilk has limitations on sample size
-                sw_stat, sw_pvalue = shapiro(stable_residuals)
-                sw_interpretation = (
-                    f"Residuals are normal (n={n_obs}, Shapiro-Wilk)" if sw_pvalue > 0.05 else f"Residuals are non-normal (n={n_obs}, Shapiro-Wilk)"
-                ) + stability_note
-                diagnostics_data.append(["Shapiro-Wilk Test", float(sw_stat), float(sw_pvalue), sw_interpretation])
-            else:
-                reason = "Too few observations" if n_obs < 3 else "Too many observations (>5000)"
-                diagnostics_data.append(["Shapiro-Wilk Test", float("nan"), float("nan"), f"{reason} for Shapiro-Wilk test"])
-        except Exception as e:
-            diagnostics_data.append(["Shapiro-Wilk Test", float("nan"), float("nan"), f"Test failed: {str(e)[:50]}"])
-
-        # Create DataFrame
-        diagnostics_df = pd.DataFrame(diagnostics_data, columns=["Test", "Statistic", "P-Value", "Interpretation"])
-
-        # Ensure proper column order and types
-        expected_columns = ["Test", "Statistic", "P-Value", "Interpretation"]
-        if list(diagnostics_df.columns) != expected_columns:
-            raise knext.InvalidParametersError(f"Diagnostics columns mismatch. Expected: {expected_columns}, Got: {list(diagnostics_df.columns)}")
-
-        # Ensure proper data types
-        diagnostics_df["Test"] = diagnostics_df["Test"].astype(str)
-        diagnostics_df["Statistic"] = diagnostics_df["Statistic"].astype(float)
-        diagnostics_df["P-Value"] = diagnostics_df["P-Value"].astype(float)
-        diagnostics_df["Interpretation"] = diagnostics_df["Interpretation"].astype(str)
-
-        return diagnostics_df
 
     def __find_optimal_integration_params(
         self,
@@ -1178,14 +904,11 @@ class AutoSarimaLearner:
                     ic_score = np.inf
                 else:
                     # Get the appropriate information criterion
-                    if criterion_value == "aic":
-                        ic_score = model_fit.aic
-                    elif criterion_value == "bic":
+                    ic_score = model_fit.aic  # default
+                    if criterion_value == "bic":
                         ic_score = model_fit.bic
-                    elif criterion_value == "hqic":
+                    if criterion_value == "hqic":
                         ic_score = model_fit.hqic
-                    else:
-                        ic_score = model_fit.aic  # fallback
 
                 # Check if any ConvergenceWarning was caught
                 for warning in caught_warnings:

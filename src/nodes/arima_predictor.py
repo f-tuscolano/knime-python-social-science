@@ -44,11 +44,13 @@ class SarimaForcaster:
 
     -   `Model Input` is the pickled `SARIMAX` model produced by the Auto-SARIMA Learner node. This model is used to generate the forecasts.
 
-    -   `Forecast periods` allows to chose the number of forecast periods, minimum is 1.
+    -   `Forecast` allows to chose the number of forecast periods, minimum is 1.
 
     -   `Confidence Level` sets the confidence level for prediction intervals (0.01 to 0.99). Higher values create wider intervals.
 
     -   If a log transformation was applied during training (in the Learner node), the "Reverse Log" option must be checked here to ensure forecasts and confidence intervals are on the original scale.
+
+    -   `Plot Title` allows to set the title of the forecast plot.
 
     **Outputs:**
 
@@ -74,7 +76,6 @@ class SarimaForcaster:
         min_value=0.01,
         max_value=0.99,
     )
-
     plot_title = knext.StringParameter(
         label="Plot Title",
         description="Title for the forecast plot.",
@@ -160,7 +161,7 @@ class SarimaForcaster:
             forecast_index, output_df["Lower_CI"], output_df["Upper_CI"], alpha=0.3, color="red", label=f"{confidence_pct}% Confidence Interval"
         )
 
-        ax.set_title("ARIMA Forecast with Confidence Intervals")
+        ax.set_title(f"{self.plot_title}")
         ax.set_xlabel("Time")
         ax.set_ylabel("Value")
         ax.legend()

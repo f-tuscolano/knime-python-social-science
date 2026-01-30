@@ -62,3 +62,7 @@ import nodes.arima_predictor  # noqa: E402
 import nodes.correspondence_analysis  # noqa: E402
 import nodes.factor_analysis  # noqa: E402
 import nodes.factor_scorer  # noqa: E402, F401
+import nodes.ts_interpolator  # noqa: E402
+import nodes.exponential_smoothing_learner  # noqa: E402
+import nodes.exponential_smoothing_predictor  # noqa: E402
+import nodes.acf_pacf_plot  # noqa: E402, F401
