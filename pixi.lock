@@ -4,6 +4,8 @@ environments:
     channels:
     - url: https://conda.anaconda.org/knime/
     - url: https://conda.anaconda.org/conda-forge/
+    options:
+      pypi-prerelease-mode: if-necessary-or-explicit
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
@@ -36,7 +38,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/idna-3.10-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/jinja2-3.1.6-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/keyutils-1.6.3-hb9d3cd8_0.conda
-      - conda: https://conda.anaconda.org/knime/noarch/knime-extension-bundling-5.7.0-202509121512.conda
+      - conda: https://conda.anaconda.org/knime/noarch/knime-extension-bundling-5.8.0-202510071201.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/krb5-1.21.3-h659f571_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/lcms2-2.17-h717163a_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ld_impl_linux-64-2.44-h1aa0949_4.conda
@@ -119,7 +121,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/hyperframe-6.1.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/idna-3.10-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/jinja2-3.1.6-pyhd8ed1ab_0.conda
-      - conda: https://conda.anaconda.org/knime/noarch/knime-extension-bundling-5.7.0-202509121512.conda
+      - conda: https://conda.anaconda.org/knime/noarch/knime-extension-bundling-5.8.0-202510071201.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/libcxx-21.1.4-h3d58e20_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/libexpat-2.7.1-h21dd04a_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/libffi-3.5.2-h750e83c_0.conda
@@ -164,7 +166,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/icu-75.1-hfee45f7_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/idna-3.10-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/jinja2-3.1.6-pyhd8ed1ab_0.conda
-      - conda: https://conda.anaconda.org/knime/noarch/knime-extension-bundling-5.7.0-202509121512.conda
+      - conda: https://conda.anaconda.org/knime/noarch/knime-extension-bundling-5.8.0-202510071201.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libcxx-21.1.4-hf598326_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libexpat-2.7.1-hec049ff_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libffi-3.5.2-he5f378a_0.conda
@@ -208,7 +210,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/hyperframe-6.1.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/idna-3.10-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/jinja2-3.1.6-pyhd8ed1ab_0.conda
-      - conda: https://conda.anaconda.org/knime/noarch/knime-extension-bundling-5.7.0-202509121512.conda
+      - conda: https://conda.anaconda.org/knime/noarch/knime-extension-bundling-5.8.0-202510071201.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libexpat-2.7.1-hac47afa_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libffi-3.5.2-h52bdfb6_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libgit2-1.9.1-hce7164d_1.conda
@@ -248,6 +250,8 @@ environments:
     channels:
     - url: https://conda.anaconda.org/knime/
     - url: https://conda.anaconda.org/conda-forge/
+    options:
+      pypi-prerelease-mode: if-necessary-or-explicit
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
@@ -1100,6 +1104,8 @@ environments:
     channels:
     - url: https://conda.anaconda.org/knime/
     - url: https://conda.anaconda.org/conda-forge/
+    options:
+      pypi-prerelease-mode: if-necessary-or-explicit
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
@@ -4254,11 +4260,11 @@ packages:
   license: GPLv3
   size: 100628
   timestamp: 1759350485588
-- conda: https://conda.anaconda.org/knime/noarch/knime-extension-bundling-5.7.0-202509121512.conda
+- conda: https://conda.anaconda.org/knime/noarch/knime-extension-bundling-5.8.0-202510071201.conda
   build_number: 0
   noarch: python
-  sha256: b9b552b1c01a484ad88a6c5f8f00bf64602755794fad67548bef11a0d2504559
-  md5: a532126cbc9c0db033d222c5d3fd4457
+  sha256: 14241bf1f9c5118394c98f35bb416f42da3aa242733111cd2510b3ce3954cf15
+  md5: aefa1103ea4ed4ff1e769b2f85c8f54a
   depends:
   - gitpython >=3.1.44,<4
   - jinja2 >=3.1.6,<4
@@ -4273,8 +4279,8 @@ packages:
   - requests >=2.32.4,<3
   license: GPL-3.0
   license_family: GPL3
-  size: 106473
-  timestamp: 1757690124434
+  size: 112339
+  timestamp: 1759838645467
 - conda: https://conda.anaconda.org/knime/linux-64/knime-python-base-5.8.0-py311_202510061424.conda
   build_number: 0
   sha256: cfe94fc090ab25f2b6feeded57b938a056b68dd4d72b00f1ab4bcb072d3ea9ae

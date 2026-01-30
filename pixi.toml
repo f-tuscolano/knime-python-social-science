@@ -19,7 +19,7 @@ factor-analyzer = ">=0.5.1,<0.6"
 
 [feature.build.dependencies]
 python = "3.9.*"
-knime-extension-bundling = "5.10.*"
+knime-extension-bundling = "5.8.*"
 
 [feature.debug.dependencies]
 debugpy = "*"
