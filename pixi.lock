@@ -65,7 +65,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libxcrypt-4.4.36-hd590300_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libzlib-1.3.1-hb9d3cd8_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/markupsafe-3.0.2-py39h9399b63_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/maven-3.9.0-ha770c72_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/maven-3.9.12-ha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ncurses-6.5-h2d0b736_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/networkx-3.2.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/openjdk-17.0.15-h5ddf6bc_0.conda
@@ -119,7 +119,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-64/libsqlite-3.50.4-h39a8b3b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/libzlib-1.3.1-hd23fc13_2.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/markupsafe-3.0.2-py39hd18e689_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-64/maven-3.9.0-h694c41f_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-64/maven-3.9.12-h694c41f_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/ncurses-6.5-h0622a9a_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/networkx-3.2.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/openjdk-17.0.15-he8b4a69_0.conda
@@ -158,7 +158,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libsqlite-3.50.4-h4237e3c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libzlib-1.3.1-h8359307_2.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/markupsafe-3.0.2-py39hefdd603_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/maven-3.9.0-hce30654_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/maven-3.9.12-hce30654_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/ncurses-6.5-h5e97a16_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/networkx-3.2.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/openjdk-17.0.15-h7c160ba_0.conda
@@ -197,7 +197,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/libssh2-1.11.1-h9aa295b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libzlib-1.3.1-h2466b09_2.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/markupsafe-3.0.2-py39hf73967f_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/maven-3.9.0-h57928b3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/maven-3.9.12-h57928b3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/networkx-3.2.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/openjdk-17.0.15-ha3ebe1c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/openssl-3.5.4-h725018a_0.conda
@@ -8635,42 +8635,42 @@ packages:
   license_family: BSD
   size: 14467
   timestamp: 1733417051523
-- conda: https://conda.anaconda.org/conda-forge/linux-64/maven-3.9.0-ha770c72_0.conda
-  sha256: de7a4015d264d77d3bb9ab9c05bbe200cbbe26b8497a428450074a2f8040f5fe
-  md5: 8c5fcf9870ee70cecf3309ef8669fc1d
+- conda: https://conda.anaconda.org/conda-forge/linux-64/maven-3.9.12-ha770c72_0.conda
+  sha256: 20479e7571266db002bd393d5e96cb19086fc909367f282e13fed73f99ce81fa
+  md5: 27eee2f66fd7654622214d0f4487bdf2
   depends:
   - openjdk
   license: Apache-2.0
   license_family: APACHE
-  size: 8733136
-  timestamp: 1675780257100
-- conda: https://conda.anaconda.org/conda-forge/osx-64/maven-3.9.0-h694c41f_0.conda
-  sha256: 7b5f66387333def0fb06ea82d531cff2de001413f011b3e89f0aa1bf30daeeaa
-  md5: 8cd6933ff2f42eebbab0280b2f7409b2
+  size: 8933665
+  timestamp: 1765924258029
+- conda: https://conda.anaconda.org/conda-forge/osx-64/maven-3.9.12-h694c41f_0.conda
+  sha256: d4361c2db5ca97dddf72a1d5f017e6f4a99f5ff9af6eed2d57b7ee1b28349633
+  md5: d2f671dee498fa9afa5bed347ba2334d
   depends:
   - openjdk
   license: Apache-2.0
   license_family: APACHE
-  size: 8732137
-  timestamp: 1675780450062
-- conda: https://conda.anaconda.org/conda-forge/osx-arm64/maven-3.9.0-hce30654_0.conda
-  sha256: 58c752be589a42927fca08d9c2b8ec811a126eea928eac13ff7832a6e6f34558
-  md5: 9cc226e444dd56a669dd9ccbe4a47bcd
+  size: 8933685
+  timestamp: 1765924490242
+- conda: https://conda.anaconda.org/conda-forge/osx-arm64/maven-3.9.12-hce30654_0.conda
+  sha256: d782306f9c3ad06ff97314f7730418938def8bdf80466b48b3eb1825a29123fc
+  md5: 3dbdf7208b3364f747ac513c54560a0b
   depends:
   - openjdk
   license: Apache-2.0
   license_family: APACHE
-  size: 8735771
-  timestamp: 1675780412507
-- conda: https://conda.anaconda.org/conda-forge/win-64/maven-3.9.0-h57928b3_0.conda
-  sha256: 7681300e0b133daf198f6c65a5513ba87c3117026b50ba4fa58e3a366de2e675
-  md5: 614b73fea8468744b58972e32b7dd878
+  size: 8934380
+  timestamp: 1765924475130
+- conda: https://conda.anaconda.org/conda-forge/win-64/maven-3.9.12-h57928b3_0.conda
+  sha256: 74f1e2faee598df566d526a806e5873523d75c9add8b0456525e84387caf52aa
+  md5: 3fab4d7bdbd1dc29311ea8d626823a8a
   depends:
   - openjdk
   license: Apache-2.0
   license_family: APACHE
-  size: 8737951
-  timestamp: 1675781424208
+  size: 8935757
+  timestamp: 1765924724379
 - conda: https://conda.anaconda.org/conda-forge/win-64/mkl-2024.2.2-h57928b3_16.conda
   sha256: ce841e7c3898764154a9293c0f92283c1eb28cdacf7a164c94b632a6af675d91
   md5: 5cddc979c74b90cf5e5cda4f97d5d8bb
