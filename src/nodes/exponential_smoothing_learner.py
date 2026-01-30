@@ -10,28 +10,18 @@ LOGGER = logging.getLogger(__name__)
     label="Model Methods",
 )
 class MethodModels:
-    '''
+    """
     Model Methods Parameter Group
-    '''
-
-    class ErrorModels(knext.EnumParameterOptions):
-        Z = ("automatic", "Automatic selection based on data characteristics")
-        A = ("additive", "Additive error model")
-        M = ("multiplicative", "Multiplicative error model")
-    error_model = knext.EnumParameter(
-        label="Error Model",
-        description="Specifies the error model to use in the ETS model.",
-        default_value=ErrorModels.Z.name,
-        enum=ErrorModels,
-    )
+    """
 
     class TrendModels(knext.EnumParameterOptions):
-        Z = ("automatic", "Automatic selection based on data characteristics")
+        Z = ("Automatic", "Automatic selection based on data characteristics")
         N = ("None", "No trend component")
-        A = ("additive", "Additive trend component")
-        M = ("multiplicative", "Multiplicative trend component")
-        Ad = ("additive damped", "Additive damped trend component")
-        Md = ("multiplicative damped", "Multiplicative damped trend component")
+        A = ("Additive", "Additive trend component")
+        M = ("Multiplicative", "Multiplicative trend component")
+        Ad = ("Additive damped", "Additive damped trend component")
+        Md = ("Multiplicative damped", "Multiplicative damped trend component")
+
     trend_model = knext.EnumParameter(
         label="Trend Model",
         description="Specifies the trend component to use in the ETS model.",
@@ -45,10 +35,11 @@ class MethodModels:
     )
 
     class SeasonalModels(knext.EnumParameterOptions):
-        Z = ("automatic", "Automatic selection based on data characteristics")
+        Z = ("Automatic", "Automatic selection based on data characteristics")
         N = ("None", "No seasonal component")
-        A = ("additive", "Additive seasonal component")
-        M = ("multiplicative", "Multiplicative seasonal component")
+        A = ("Additive", "Additive seasonal component")
+        M = ("Multiplicative", "Multiplicative seasonal component")
+
     seasonal_model = knext.EnumParameter(
         label="Seasonal Model",
         description="Specifies the seasonal component to use in the ETS model.",
@@ -57,32 +48,40 @@ class MethodModels:
     )
     seasonality = knext.IntParameter(
         label="Seasonality",
-        description='Specify the length of the seasonal period for your time series data. This parameter determines how many observations constitute one complete seasonal cycle',
+        description="Specify the length of the seasonal period for your time series data. This parameter determines how many observations constitute one complete seasonal cycle",
         default_value=2,
         min_value=2,
-    ).rule(
-        knext.OneOf(seasonal_model, [SeasonalModels.N.name]), knext.Effect.HIDE
+    ).rule(knext.OneOf(seasonal_model, [SeasonalModels.N.name]), knext.Effect.HIDE)
+
+    class ErrorModels(knext.EnumParameterOptions):
+        Z = ("Automatic", "Automatic selection based on data characteristics")
+        A = ("Additive", "Additive error model")
+        M = ("Multiplicative", "Multiplicative error model")
+
+    error_model = knext.EnumParameter(
+        label="Error Model",
+        description="Specifies the error model to use in the ETS model.",
+        default_value=ErrorModels.Z.name,
+        enum=ErrorModels,
     )
 
-@knext.parameter_group(
-    label="Box-Cox settings"
-)
+
+@knext.parameter_group(label="Box-Cox settings")
 class BoxCoxSettings:
     """
     Grouped parameters for Box-Cox transformation settings.
     """
+
     enabled = knext.BoolParameter(
         label="Use Box-Cox transformation",
-            description="Apply Box-Cox transformation before interpolation. Requires all observed values to be positive. Enabling this option can help stabilize variance and make the data more normally distributed. If marked, only additive models are considered. Fitted values are back-transformed in the in-sample output; residuals and residual-based diagnostics remain on the log scale.",
+        description="Apply Box-Cox transformation before interpolation. Requires all observed values to be positive. Enabling this option can help stabilize variance and make the data more normally distributed. If marked, only additive models are considered. Fitted values are back-transformed in the in-sample output; residuals and residual-based diagnostics remain on the log scale.",
         default_value=False,
     )
     estimate_lambda = knext.BoolParameter(
         label="Estimate lambda parameter for Box-Cox automatically",
         description="If enabled, lambda is estimated from the observed (non-missing) values.",
         default_value=True,
-    ).rule(
-        knext.OneOf(enabled, [False]), knext.Effect.HIDE
-    )
+    ).rule(knext.OneOf(enabled, [False]), knext.Effect.HIDE)
     lambda_value = knext.DoubleParameter(
         label="Box-Cox lambda",
         description="Used only when Box-Cox is enabled and automatic lambda estimation is disabled.",
@@ -109,7 +108,7 @@ class BoxCoxSettings:
         "Time Series",
         "Forecasting",
         "Seasonal",
-    ]
+    ],
 )
 @knext.input_table(
     name="Input Data",
@@ -136,22 +135,21 @@ class BoxCoxSettings:
     description="Trained ETS results object (pickled statsmodels ETSResults) ready for forecasting. Use with the  ETS Predictor node to generate forecasts without retraining.",
     id="est.model",
 )
-
-class ExponentialSmoothingLearner():
+class ExponentialSmoothingLearner:
     """
     Fits an ETS (Error-Trend-Seasonal) exponential smoothing model and selects the best specification.
 
     **ETS** models are state-space exponential smoothing models that combine:
-    - an **error** component (additive or multiplicative),
-    - an optional **trend** component (none/additive/multiplicative, optionally damped),
-    - an optional **seasonal** component (none/additive/multiplicative).
+    - an **error** component (Additive or Multiplicative),
+    - an optional **trend** component (none/Additive/Multiplicative, optionally damped),
+    - an optional **seasonal** component (none/Additive/Multiplicative).
 
     This learner evaluates a set of candidate ETS specifications (based on your settings),
     records their fit statistics, and selects the best model according to the chosen criterion.
 
     ## How model selection works
     1. Build the list of candidate component combinations from your settings
-    (automatic → multiple options, fixed → a single option).
+    (Automatic → multiple options, fixed → a single option).
     2. Fit each candidate using `statsmodels` ETS state-space maximum likelihood.
     3. Store per-candidate diagnostics (AIC/BIC/HQIC/LLF and error metrics) in **Optimization History**.
     4. Select the best candidate by:
@@ -177,7 +175,7 @@ class ExponentialSmoothingLearner():
     - MSE, MAE (absolute-scale errors),
     - MSE_REL, MAE_REL (relative-scale errors; expressed as a percentage).
     - **Error / Trend / Seasonal Model**:
-    - Choose “automatic” to evaluate multiple options,
+    - Choose “Automatic” to evaluate multiple options,
     - or fix specific components to restrict the search.
     - **Seasonality**: Seasonal period length (only shown when seasonal component ≠ None).
 
@@ -210,7 +208,6 @@ class ExponentialSmoothingLearner():
         column_filter=kutil.is_numeric,
     )
 
-
     class CriterionOptions(knext.EnumParameterOptions):
         LLF = ("LLF", "Likelihood - Focuses solely on model fit quality without penalizing complexity.")
         AIC = ("AIC", "Akaike Information Criterion - Optimizes prediction accuracy, allows moderate complexity. Best for forecasting applications.")
@@ -223,11 +220,12 @@ class ExponentialSmoothingLearner():
         MAE = ("MAE", "Mean Absolute Error - Measures average absolute difference between observed and predicted values.")
         MSE_REL = ("MSE_REL", "Relative Mean Squared Error - MSE of relative residuals (residual / fitted value), expressed as a percentage.")
         MAE_REL = ("MAE_REL", "Relative Mean Absolute Error - MAE of relative residuals (residual / fitted value), expressed as a percentage.")
+
     criterion = knext.EnumParameter(
         label="Model Selection Criterion",
         description="Criterion used to select the best model during training. 'AIC' and 'BIC' penalize model complexity, while 'Log Likelihood' (default) focuses on fit quality.",
         default_value=CriterionOptions.LLF.name,
-        enum=CriterionOptions
+        enum=CriterionOptions,
     )
 
     model_methods = MethodModels()
@@ -237,7 +235,6 @@ class ExponentialSmoothingLearner():
     error_model = ""
     seasonal_model = ""
     trend_model = ""
-
 
     def configure(self, configure_context: knext.ConfigurationContext, input_schema: knext.Schema) -> knext.Schema:
         # Checks that the given column is not None and exists in the given schema. If none is selected it returns the first column that is compatible with the provided function. If none is compatible it throws an exception.
@@ -252,18 +249,26 @@ class ExponentialSmoothingLearner():
         self.seasonal_model = MethodModels.SeasonalModels[self.model_methods.seasonal_model].value[0]
         self.trend_model = MethodModels.TrendModels[self.model_methods.trend_model].value[0]
 
-        if self.error_model == 'additive' and self.seasonal_model == 'multiplicative':
-            LOGGER.warning('Additive error with Multiplicative seasonality is not recommended as it can lead to numerical instability due to division by values potentially close to zero in the state equations')
+        if self.error_model == "Additive" and self.seasonal_model == "Multiplicative":
+            LOGGER.warning(
+                "Additive error with Multiplicative seasonality is not recommended as it can lead to numerical instability due to division by values potentially close to zero in the state equations"
+            )
 
-        if 'multiplicative' in self.trend_model:
+        if "Multiplicative" in self.trend_model:
             if not self.model_methods.allow_multiplicative_trend:
                 raise knext.InvalidParametersError('Cannot enforce Multiplicative Trend model unless "Allow Multiplicative Trend" option is marked.')
-            LOGGER.warning('Multiplicative trend methods have generally poor forecasting performance and should be used with caution. Mark the option "Allow Multiplicative Trend" to allow selection of multiplicative trend components.')
+            LOGGER.warning(
+                'Multiplicative trend methods have generally poor forecasting performance and should be used with caution. Mark the option "Allow Multiplicative Trend" to allow selection of multiplicative trend components.'
+            )
 
-        if 'multiplicative' in [self.error_model, self.trend_model, self.seasonal_model]:
-            LOGGER.warning('At least one model component is forced to be multiplicative. Ensure that the target column contains only positive values to avoid fitting errors.')
+        if "Multiplicative" in [self.error_model, self.trend_model, self.seasonal_model]:
+            LOGGER.warning(
+                "At least one model component is forced to be multiplicative. Ensure that the target column contains only positive values to avoid fitting errors."
+            )
             if self.boxcox.enabled:
-                raise knext.InvalidParametersError('Box-Cox transformation cannot be used with multiplicative model components. Please disable Box-Cox or switch to additive components (setting them explicitly or with \'automatic\' option).')
+                raise knext.InvalidParametersError(
+                    "Box-Cox transformation cannot be used with multiplicative model components. Please disable Box-Cox or switch to additive components (setting them explicitly or with 'Automatic' option)."
+                )
 
         # Enhanced predictions table schema (removed Index column)
         predictions_schema = knext.Schema(
@@ -280,17 +285,20 @@ class ExponentialSmoothingLearner():
 
         optimization_history_schema = knext.Schema(
             [
-                knext.string(), knext.string(), knext.string(),
-                knext.double(), knext.double(), knext.double(),
-                knext.double(), knext.double(), knext.double(),
-                knext.double(), knext.double(), knext.string()
+                knext.string(),
+                knext.string(),
+                knext.string(),
+                knext.double(),
+                knext.double(),
+                knext.double(),
+                knext.double(),
+                knext.double(),
+                knext.double(),
+                knext.double(),
+                knext.double(),
+                knext.string(),
             ],
-            [
-                "error", "trend", "seasonal",
-                "llf", "aic", "bic",
-                "hqic", "mse", "mae",
-                "mse_rel", "mae_rel", "status"
-            ],
+            ["error", "trend", "seasonal", "llf", "aic", "bic", "hqic", "mse", "mae", "mse_rel", "mae_rel", "status"],
         )
 
         binary_model_schema = knext.BinaryPortObjectSpec("est.model")
@@ -303,9 +311,7 @@ class ExponentialSmoothingLearner():
             binary_model_schema,
         )
 
-
     def execute(self, exec_context: knext.ExecutionContext, input: knext.Table):
-
         import pandas as pd
         import pickle
 
@@ -322,23 +328,23 @@ class ExponentialSmoothingLearner():
         exec_context.set_progress(0.1)
 
         if kutil.count_negative_values(target_col) > 0:
-            if 'multiplicative' in [self.error_model, self.trend_model, self.seasonal_model]:
-                raise knext.InvalidParametersError(
-                    "Cannot enforce multiplicative models with negative values in the target column."
-                )
+            if "Multiplicative" in [self.error_model, self.trend_model, self.seasonal_model]:
+                raise knext.InvalidParametersError("Cannot enforce multiplicative models with negative values in the target column.")
             if self.boxcox.enabled:
-                raise knext.InvalidParametersError(
-                    "Box-Cox transformation cannot be used with negative values in the target column."
-                )
+                raise knext.InvalidParametersError("Box-Cox transformation cannot be used with negative values in the target column.")
 
         # Apply Box-Cox transformation if enabled
         if self.boxcox.enabled:
-            target_col, self.boxcox.lambda_value = kutil.box_cox_transform(target_col, LOGGER, self.boxcox.lambda_value if (not self.boxcox.estimate_lambda) else None)
+            target_col, self.boxcox.lambda_value = kutil.box_cox_transform(
+                target_col, LOGGER, self.boxcox.lambda_value if (not self.boxcox.estimate_lambda) else None
+            )
             LOGGER.info(f"Applied Box-Cox transformation with lambda = {self.boxcox.lambda_value}.")
 
         # check if the number of obsevations is greater than or equal to twice the seasonal period
-        if (self.seasonal_model != 'None') and (len(target_col) < 2 *  self.model_methods.seasonality):
-            LOGGER.warning(f"The number of observations in the target column ({len(target_col)}) is lower than twice the seasonal period ({self.model_methods.seasonality}). This may lead to unreliable model estimates and forecasts.")
+        if (self.seasonal_model != "None") and (len(target_col) < 2 * self.model_methods.seasonality):
+            LOGGER.warning(
+                f"The number of observations in the target column ({len(target_col)}) is lower than twice the seasonal period ({self.model_methods.seasonality}). This may lead to unreliable model estimates and forecasts."
+            )
             exec_context.set_warning(
                 f"The number of observations in the target column ({len(target_col)}) is lower than twice the seasonal period ({self.model_methods.seasonality}). This may lead to unreliable model estimates and forecasts."
             )
@@ -351,7 +357,7 @@ class ExponentialSmoothingLearner():
         kutil.validate_missing_values(target_col)
 
         # Add performance warning for large seasonal periods
-        if self.seasonal_model != 'None':
+        if self.seasonal_model != "None":
             kutil.seasonality_performance_warning(
                 context=exec_context,
                 LOGGER=LOGGER,
@@ -369,24 +375,20 @@ class ExponentialSmoothingLearner():
             exec_context,
             pd,
         )
-        trained_model = trained_model_dict['model']
+        trained_model = trained_model_dict["model"]
 
         exec_context.set_progress(0.8)
 
         # adjust seasonality to 0 for non-seasonal model for compatibility with utils functions
-        if self.seasonal_model == 'None':
+        if self.seasonal_model == "None":
             adj_seasonality = 0
         else:
             adj_seasonality = self.model_methods.seasonality
 
         # Create enhanced predictions table with original values
         enhanced_predictions = kutil.enhance_predictions_table(
-            trained_model,
-            input,
-            self.input_column,
-            adj_seasonality,
-            self.DEFAULT_SKIP_OBSERVATIONS,
-            pd)
+            trained_model, input, self.input_column, adj_seasonality, self.DEFAULT_SKIP_OBSERVATIONS, pd
+        )
 
         # Apply Box-Cox transformation reverse if needed
         if self.boxcox.enabled:
@@ -398,13 +400,10 @@ class ExponentialSmoothingLearner():
 
         # generate residual diagnostics
         residual_diagnostics = kutil.compute_residual_diagnostics(
-            trained_model,
-            adj_seasonality,
-            self.DEFAULT_SKIP_OBSERVATIONS,
-            self.DEFAULT_LJUNG_BOX_LAGS,
-            pd)
+            trained_model, adj_seasonality, self.DEFAULT_SKIP_OBSERVATIONS, self.DEFAULT_LJUNG_BOX_LAGS, pd
+        )
 
-        optimization_history = self.optimization_history.drop('model', axis=1)
+        optimization_history = self.optimization_history.drop("model", axis=1)
 
         model_binary = pickle.dumps(trained_model)
 
@@ -418,17 +417,10 @@ class ExponentialSmoothingLearner():
             model_binary,
         )
 
-
-    def __find_best_ets_model(
-            self,
-            target_col,
-            combinations,
-            exec_context: knext.ExecutionContext,
-            pd
-        ):
-        '''
+    def __find_best_ets_model(self, target_col, combinations, exec_context: knext.ExecutionContext, pd):
+        """
         Searches through all valid ETS model combinations to find the best-fitting model based on AIC.
-        '''
+        """
         import warnings
         from numpy import mean, abs, inf
         from statsmodels.tools.sm_exceptions import ConvergenceWarning
@@ -467,47 +459,53 @@ class ExponentialSmoothingLearner():
                     mae_abs = mean(abs(err_abs))
                     mse_rel = mean(err_rel**2) * 100
                     mae_rel = mean(abs(err_rel)) * 100
-                    LOGGER.info(f"Fitted ETS({error}, {trend}, {seasonal}) model {idx}/{len(combinations)} successfully. resid range: {trained_model.resid.min()} to {trained_model.resid.max()}.")
+                    LOGGER.info(
+                        f"Fitted ETS({error}, {trend}, {seasonal}) model {idx}/{len(combinations)} successfully. resid range: {trained_model.resid.min()} to {trained_model.resid.max()}."
+                    )
 
-                self.optimization_history.append({
-                    'error': error,
-                    'trend': trend,
-                    'seasonal': seasonal,
-                    'llf': trained_model.llf if status_message == "Success" else -inf,
-                    'aic': trained_model.aic if status_message == "Success" else inf,
-                    'bic': trained_model.bic if status_message == "Success" else inf,
-                    'hqic': trained_model.hqic if status_message == "Success" else inf,
-                    'mse': mse_abs if status_message == "Success" else inf,
-                    'mae': mae_abs if status_message == "Success" else inf,
-                    'mse_rel': mse_rel if status_message == "Success" else inf,
-                    'mae_rel': mae_rel if status_message == "Success" else inf,
-                    'status': status_message,
-                    'model': trained_model
-                })
+                self.optimization_history.append(
+                    {
+                        "error": error,
+                        "trend": trend,
+                        "seasonal": seasonal,
+                        "llf": trained_model.llf if status_message == "Success" else -inf,
+                        "aic": trained_model.aic if status_message == "Success" else inf,
+                        "bic": trained_model.bic if status_message == "Success" else inf,
+                        "hqic": trained_model.hqic if status_message == "Success" else inf,
+                        "mse": mse_abs if status_message == "Success" else inf,
+                        "mae": mae_abs if status_message == "Success" else inf,
+                        "mse_rel": mse_rel if status_message == "Success" else inf,
+                        "mae_rel": mae_rel if status_message == "Success" else inf,
+                        "status": status_message,
+                        "model": trained_model,
+                    }
+                )
 
             except Exception as e:
                 # Handle potential errors during model fitting (e.g., invalid parameters)
                 LOGGER.warning(f"Model fitting failed for combination: ETS({error}, {trend}, {seasonal})", exc_info=True)
                 exec_context.set_warning(
-                f"WARNING: ETS model fitting failed with parameters ETS({error}, {trend}, {seasonal}). "
-                f"Error: {str(e)}. This may indicate numerical issues with large seasonal periods "
-                f"or insufficient data for the model complexity."
+                    f"WARNING: ETS model fitting failed with parameters ETS({error}, {trend}, {seasonal}). "
+                    f"Error: {str(e)}. This may indicate numerical issues with large seasonal periods "
+                    f"or insufficient data for the model complexity."
                 )
-                self.optimization_history.append({
-                    'error': error,
-                    'trend': trend,
-                    'seasonal': seasonal,
-                    'llf': inf,
-                    'aic': inf,
-                    'bic': inf,
-                    'hqic': inf,
-                    'mse': inf,
-                    'mae': inf,
-                    'mse_rel': inf,
-                    'mae_rel': inf,
-                    'status': str(f"Fitting Failed: {str(e)[:100]}"),
-                    'model': trained_model
-                })
+                self.optimization_history.append(
+                    {
+                        "error": error,
+                        "trend": trend,
+                        "seasonal": seasonal,
+                        "llf": inf,
+                        "aic": inf,
+                        "bic": inf,
+                        "hqic": inf,
+                        "mse": inf,
+                        "mae": inf,
+                        "mse_rel": inf,
+                        "mae_rel": inf,
+                        "status": str(f"Fitting Failed: {str(e)[:100]}"),
+                        "model": trained_model,
+                    }
+                )
                 continue
 
         if not self.optimization_history:
@@ -516,18 +514,17 @@ class ExponentialSmoothingLearner():
         criterion = str(self.criterion).lower()
         self.optimization_history = pd.DataFrame(self.optimization_history)
 
-        if criterion == 'llf':
+        if criterion == "llf":
             best_idx = self.optimization_history[criterion].idxmax()
         else:
             best_idx = self.optimization_history[criterion].idxmin()
 
         return self.optimization_history.loc[best_idx].to_dict()
 
-
     def __get_model_combinations(self):
-        '''
+        """
         Generates all valid combinations of ETS model components based on user selections.
-        '''
+        """
         from itertools import product
 
         # initialize lists for each component's options for safety
@@ -535,59 +532,57 @@ class ExponentialSmoothingLearner():
         trend_options = []
         seasonal_options = []
 
-        if self.error_model == 'automatic':
-            error_options = ['additive', 'multiplicative']
+        if self.error_model == "Automatic":
+            error_options = ["Additive", "Multiplicative"]
             if self.boxcox.enabled:
-                error_options = ['additive']
+                error_options = ["Additive"]
         else:
             error_options = [self.error_model]
 
-        if self.trend_model == 'automatic':
+        if self.trend_model == "Automatic":
             if (not self.model_methods.allow_multiplicative_trend) or (self.boxcox.enabled):
-                trend_options = ['None', 'additive', 'additive damped']
+                trend_options = ["None", "Additive", "Additive damped"]
             else:
-                trend_options = ['None', 'additive', 'multiplicative', 'additive damped', 'multiplicative damped']
+                trend_options = ["None", "Additive", "Multiplicative", "Additive damped", "Multiplicative damped"]
         else:
             trend_options = [self.trend_model]
 
-        if self.seasonal_model == 'automatic':
-            seasonal_options = ['None', 'additive', 'multiplicative']
+        if self.seasonal_model == "Automatic":
+            seasonal_options = ["None", "Additive", "Multiplicative"]
             if self.boxcox.enabled:
-                seasonal_options = ['None', 'additive']
+                seasonal_options = ["None", "Additive"]
         else:
             seasonal_options = [self.seasonal_model]
 
         return list(product(error_options, trend_options, seasonal_options))
 
-
     def __train_model(
-            self,
-            target_col,
-            error,
-            trend,
-            seasonal,
-            ):
-        '''
+        self,
+        target_col,
+        error,
+        trend,
+        seasonal,
+    ):
+        """
         Workhorse function fitting the ETS model to the target column using specified model components.
-        '''
+        """
         from statsmodels.tsa.exponential_smoothing.ets import ETSModel
 
         damped_trend = False
-        if 'damped' in trend:
+        if "damped" in trend:
             damped_trend = True
-            trend = trend.replace(' damped', '')
+            trend = trend.replace(" damped", "")
 
         model = ETSModel(
-            endog = target_col,
-            error = error,
-            trend = None if trend == "None" else trend,
-            damped_trend = damped_trend,
-            seasonal = None if seasonal == "None" else seasonal,
-            seasonal_periods = self.model_methods.seasonality if seasonal != "None" else None,
+            endog=target_col,
+            error=error,
+            trend=None if trend == "None" else trend,
+            damped_trend=damped_trend,
+            seasonal=None if seasonal == "None" else seasonal,
+            seasonal_periods=self.model_methods.seasonality if seasonal != "None" else None,
         )
 
         return model.fit(disp=False)
-
 
     def __get_coeffs_and_stats(self, model, pd):
         """
@@ -630,7 +625,7 @@ class ExponentialSmoothingLearner():
         if hasattr(model, "params") and len(model.params) > 0:
             for i in range(len(model.params)):
                 param_name = model.param_names[i]
-                if 'initial' in param_name.lower():
+                if "initial" in param_name.lower():
                     continue  # Skip initial state parameters
                 coeff_val = model.params[i]
                 data.append(
@@ -646,7 +641,7 @@ class ExponentialSmoothingLearner():
                     data.append(
                         {
                             "Parameter": f"{param_name} (Std. Error)",
-                            "Value": sterr, # np.nan if np.isnan(float(model.bse[i])) else
+                            "Value": sterr,  # np.nan if np.isnan(float(model.bse[i])) else
                             "Explanation": "Standard error of the coefficient estimate.",
                         }
                     )

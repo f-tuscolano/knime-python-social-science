@@ -13,6 +13,7 @@ class BoxCoxSettings:
     """
     Grouped parameters for Box-Cox transformation settings.
     """
+
     enabled = knext.BoolParameter(
         label="Use Box-Cox transformation",
         description="Apply Box-Cox transformation before interpolation. Requires all observed values to be positive.",
@@ -22,9 +23,7 @@ class BoxCoxSettings:
         label="Estimate lambda parameter for Box-Cox automatically",
         description="If enabled, lambda is estimated from the observed (non-missing) values.",
         default_value=True,
-    ).rule(
-        knext.OneOf(enabled, [False]), knext.Effect.HIDE
-    )
+    ).rule(knext.OneOf(enabled, [False]), knext.Effect.HIDE)
     lambda_value = knext.DoubleParameter(
         label="Box-Cox lambda",
         description="Used only when Box-Cox is enabled and automatic lambda estimation is disabled.",
@@ -50,7 +49,7 @@ class BoxCoxSettings:
         "Time Series",
         "Forecasting",
         "Seasonal",
-    ]
+    ],
 )
 @knext.input_table(
     name="Input Data",
@@ -60,7 +59,6 @@ class BoxCoxSettings:
     name="Output Data",
     description="Single-column output table containing the interpolated series '<Target Column> interpolated'. If the selected column has no missing values, the input table is returned unchanged.",
 )
-
 class TimeSeriesInterpolator:
     """
     Interpolates missing values in a univariate time series, following the structure of R forecast::na.interp.
@@ -115,7 +113,7 @@ class TimeSeriesInterpolator:
     )
     seasonality = knext.IntParameter(
         label="Seasonality",
-        description='Specify the length of the seasonal period for your time series data. Seasonality of 1 (default) indicates no seasonality.',
+        description="Specify the length of the seasonal period for your time series data. Seasonality of 1 (default) indicates no seasonality.",
         default_value=1,
         min_value=1,
     )
@@ -136,13 +134,9 @@ class TimeSeriesInterpolator:
             [f"{self.input_column} interpolated"],
         )
 
-        return (
-            interpolation_schema
-        )
-
+        return interpolation_schema
 
     def execute(self, exec_context: knext.ExecutionContext, input_table: knext.Table):
-
         df = input_table.to_pandas()
         input_column = df[self.input_column]
         input_column_series = pd.Series(input_column, dtype=np.float64)
@@ -152,9 +146,7 @@ class TimeSeriesInterpolator:
             return knext.Table.from_pandas(df, row_ids="keep")
 
         if kutil.count_missing_values(input_column_series) == len(input_column_series):
-            raise knext.InvalidParametersError(
-                "The selected column has only missing values; interpolation is not possible."
-            )
+            raise knext.InvalidParametersError("The selected column has only missing values; interpolation is not possible.")
 
         if len(input_column_series) < self.seasonality:
             raise knext.InvalidParametersError(
@@ -178,29 +170,18 @@ class TimeSeriesInterpolator:
 
         exec_context.set_progress(0.9)
 
-        output_df = pd.DataFrame(
-            {
-                f"{self.input_column} interpolated": interpolated_series
-            }
-        )
+        output_df = pd.DataFrame({f"{self.input_column} interpolated": interpolated_series})
         # Ensure all columns are float64 to match schema
         output_df = output_df.astype("float64")
 
-        return (
-            knext.Table.from_pandas(output_df, row_ids="keep")
-        )
+        return knext.Table.from_pandas(output_df, row_ids="keep")
 
-
-    def __linear_interp(
-            self,
-            x: np.ndarray,
-            missing: np.ndarray
-    ):
-        '''
+    def __linear_interp(self, x: np.ndarray, missing: np.ndarray):
+        """
         Linear interpolation with endpoint extension.
         Equivalent to R approx(..., rule=2) on positions 1..n.
         Returns interpolated values at missing positions.
-        '''
+        """
         n = x.size
         idx = np.arange(n, dtype=float)
         known = ~missing
@@ -236,10 +217,9 @@ class TimeSeriesInterpolator:
         t = np.arange(1, n + 1, dtype=float)
         t = (t - t.mean()) / (t.std() if t.std() > 0 else 1.0)
 
-        V = np.column_stack([t ** p for p in range(1, degree + 1)])  # (n, degree)
+        V = np.column_stack([t**p for p in range(1, degree + 1)])  # (n, degree)
         Q, _ = np.linalg.qr(V)  # Q has orthonormal columns
         return Q[:, :degree].astype(float)
-
 
     def __fourier_poly_prefill(self, x: np.ndarray, missing: np.ndarray, seasonality: int) -> np.ndarray:
         """
@@ -256,8 +236,8 @@ class TimeSeriesInterpolator:
         freq = int(seasonality)
 
         # Mirror R choices for single-seasonal ts:
-        K = min(freq // 2, 5) # K <- min(trunc(freq/2), 5)
-        degree = min(max(n // 10, 1), 6) # degree <- pmin(pmax(trunc(n/10),1),6)
+        K = min(freq // 2, 5)  # K <- min(trunc(freq/2), 5)
+        degree = min(max(n // 10, 1), 6)  # degree <- pmin(pmax(trunc(n/10),1),6)
 
         F = self.__fourier_matrix(n=n, period=freq, K=K)
         P = self.__orthogonal_poly_matrix(n=n, degree=degree)
@@ -280,7 +260,6 @@ class TimeSeriesInterpolator:
             out = x.copy()
             out[missing] = self.__linear_interp(out, missing)
             return out
-
 
     def __interpolate_series(
         self,
@@ -305,14 +284,14 @@ class TimeSeriesInterpolator:
         idx = s.index
         name = s.name
 
-        x = s.to_numpy(dtype=float) # series turned into numpy array
-        miss = np.isnan(x) # Boolean mask of missing values
-        origx = x.copy() # Create a copy of the original array
+        x = s.to_numpy(dtype=float)  # series turned into numpy array
+        miss = np.isnan(x)  # Boolean mask of missing values
+        origx = x.copy()  # Create a copy of the original array
 
         # Save original scale range for optional stability fallback
-        minx = np.nanmin(x) # The minimum value of an array along a given axis, ignoring any NaNs.
-        maxx = np.nanmax(x) # The maximum value of an array along a given axis, ignoring any NaNs.
-        drange = maxx - minx # The range of the data, ignoring any NaNs.
+        minx = np.nanmin(x)  # The minimum value of an array along a given axis, ignoring any NaNs.
+        maxx = np.nanmax(x)  # The maximum value of an array along a given axis, ignoring any NaNs.
+        drange = maxx - minx  # The range of the data, ignoring any NaNs.
 
         # Optional Box-Cox transform
         if use_boxcox:
@@ -329,10 +308,10 @@ class TimeSeriesInterpolator:
         # Seasonal path: STL on initially-filled data
         # Fourier + poly regression prefill before robust STL
         x = self.__fourier_poly_prefill(x, miss, seasonality=seasonality)
-        res = STL(x, period = seasonality, robust = True).fit()
-        seas = res.seasonal # seasonal component
+        res = STL(x, period=seasonality, robust=True).fit()
+        seas = res.seasonal  # seasonal component
 
-        sa = x - seas # seasonally adjusted (remove seasonal component, sa := trend + remainder)
+        sa = x - seas  # seasonally adjusted (remove seasonal component, sa := trend + remainder)
         sa[miss] = self.__linear_interp(sa, miss)
         origx[miss] = sa[miss] + seas[miss]
 
@@ -344,12 +323,6 @@ class TimeSeriesInterpolator:
         if stability_check and drange > 0:
             if np.nanmax(origx) > maxx + 0.5 * drange or np.nanmin(origx) < minx - 0.5 * drange:
                 # fall back to linear on original input
-                return self.__interpolate_series(
-                    s,
-                    seasonality=1,
-                    use_boxcox=use_boxcox,
-                    lambda_=lambda_,
-                    stability_check=False
-                    )
+                return self.__interpolate_series(s, seasonality=1, use_boxcox=use_boxcox, lambda_=lambda_, stability_check=False)
 
         return pd.Series(origx, index=idx, name=name)

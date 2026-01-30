@@ -15,6 +15,7 @@ class PACFCalculationMethod(knext.EnumParameterOptions):
     LD = ("LD", "Levinson-Durbin recursion with bias correction.")
     LDB = ("LDB", "Levinson-Durbin recursion without bias correction.")
 
+
 class WhichPLot(knext.EnumParameterOptions):
     BOTH = ("Both", "Generate both ACF and PACF plots.")
     ACF = ("ACF", "Autocorrelation Function plot only.")
@@ -33,7 +34,7 @@ class WhichPLot(knext.EnumParameterOptions):
         "Time Series",
         "Forecasting",
         "Seasonal",
-    ]
+    ],
 )
 @knext.input_table(
     name="Input Data",
@@ -51,7 +52,6 @@ class WhichPLot(knext.EnumParameterOptions):
     name="PACF/ACF Plot",
     description="Partial Autocorrelation Function (PACF) and/or Autocorrelation Function (ACF) plot(s) showing the correlation structure of the selected time series data.",
 )
-
 class AcfPacfPlot:
     """
     Computes and visualizes autocorrelation diagnostics for a univariate time series.
@@ -90,7 +90,6 @@ class AcfPacfPlot:
     - Interpretation is context dependent: significant spikes may indicate lag structure, but
     non-stationarity and seasonality can also drive large correlations.
     """
-
 
     input_column = knext.ColumnParameter(
         label="Target Column",
@@ -136,20 +135,15 @@ class AcfPacfPlot:
         is_advanced=True,
     )
 
-
     def configure(self, configure_context: knext.ConfigurationContext, input_schema: knext.Schema) -> knext.Schema:
         # Checks that the given column is not None and exists in the given schema. If none is selected it returns the first column that is compatible with the provided function. If none is compatible it throws an exception.
         self.input_column = kutil.column_exists_or_preset(
-            configure_context,
-            self.input_column,
-            input_schema,
-            kutil.is_numeric,
-            "Please select a numeric column for PACF/ACF plotting."
+            configure_context, self.input_column, input_schema, kutil.is_numeric, "Please select a numeric column for PACF/ACF plotting."
         )
 
         function_schema = knext.Schema(
             [knext.double(), knext.double(), knext.double(), knext.double(), knext.double(), knext.double()],
-            ["ACF Function Values", "ACF Lower CI", "ACF Upper CI", "PACF Function Values", "PACF Lower CI", "PACF Upper CI"]
+            ["ACF Function Values", "ACF Lower CI", "ACF Upper CI", "PACF Function Values", "PACF Lower CI", "PACF Upper CI"],
         )
         qstat_schema = knext.Schema(
             [knext.double(), knext.double()],
@@ -190,11 +184,7 @@ class AcfPacfPlot:
 
         # Calculate ACF
         acf_values, confidence_intervals, qstat_values, pvalues = acf(
-            target_col,
-            nlags=self.number_of_lags,
-            alpha=1 - self.confidence_level,
-            adjusted=self.adjusted,
-            qstat=True
+            target_col, nlags=self.number_of_lags, alpha=1 - self.confidence_level, adjusted=self.adjusted, qstat=True
         )
 
         exec_context.set_progress(0.3)
@@ -203,12 +193,7 @@ class AcfPacfPlot:
         pacf_method = str(self.pacf_method).lower().replace("_", "-")
 
         # Calculate PACF
-        pacf_values, pacf_conf_intervals = pacf(
-            target_col,
-            nlags=self.number_of_lags,
-            alpha=1 - self.confidence_level,
-            method=pacf_method
-        )
+        pacf_values, pacf_conf_intervals = pacf(target_col, nlags=self.number_of_lags, alpha=1 - self.confidence_level, method=pacf_method)
 
         exec_context.set_progress(0.4)
 
@@ -235,12 +220,7 @@ class AcfPacfPlot:
         exec_context.set_progress(0.5)
 
         # Plots
-        fig = self.__generate_plots(
-            exec_context,
-            target_col,
-            pacf_method,
-            plt
-        )
+        fig = self.__generate_plots(exec_context, target_col, pacf_method, plt)
 
         exec_context.set_progress(0.7)
 
@@ -258,14 +238,7 @@ class AcfPacfPlot:
             buf.getvalue(),
         )
 
-
-    def __generate_plots(
-        self,
-        exec_context,
-        target_col,
-        pacf_method,
-        plt
-    ):
+    def __generate_plots(self, exec_context, target_col, pacf_method, plt):
         """
         Generates ACF and/or PACF plots based on user selection.
 
@@ -289,6 +262,7 @@ class AcfPacfPlot:
             if self.which_plot == WhichPLot.ACF.name:
                 # ACF only
                 from statsmodels.graphics.tsaplots import plot_acf
+
                 plot_acf(
                     target_col,
                     lags=self.number_of_lags,
@@ -300,6 +274,7 @@ class AcfPacfPlot:
             else:
                 # PACF only
                 from statsmodels.graphics.tsaplots import plot_pacf
+
                 plot_pacf(
                     target_col,
                     lags=self.number_of_lags,

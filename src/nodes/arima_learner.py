@@ -360,7 +360,9 @@ class AutoSarimaLearner:
 
         # check if the number of obsevations is greater than or equal to twice the seasonal period
         if len(target_col) < 2 * self.seasonal_period_param:
-            LOGGER.warning(f"The number of observations in the target column ({len(target_col)}) is lower than twice the seasonal period ({self.seasonal_period_param}). This may lead to unreliable model estimates and forecasts.")
+            LOGGER.warning(
+                f"The number of observations in the target column ({len(target_col)}) is lower than twice the seasonal period ({self.seasonal_period_param}). This may lead to unreliable model estimates and forecasts."
+            )
             exec_context.set_warning(
                 f"The number of observations in the target column ({len(target_col)}) is lower than twice the seasonal period ({self.seasonal_period_param}). This may lead to unreliable model estimates and forecasts."
             )
@@ -420,12 +422,8 @@ class AutoSarimaLearner:
 
         # Create enhanced predictions table with original values
         enhanced_predictions = kutil.enhance_predictions_table(
-            trained_model,
-            input,
-            self.input_column,
-            self.seasonal_period_param,
-            self.DEFAULT_SKIP_OBSERVATIONS,
-            pd)
+            trained_model, input, self.input_column, self.seasonal_period_param, self.DEFAULT_SKIP_OBSERVATIONS, pd
+        )
 
         # Apply log transformation reverse if needed
         if self.natural_log:
@@ -436,11 +434,8 @@ class AutoSarimaLearner:
         coeffs_and_stats = self.__get_coeffs_and_stats(trained_model, best_params, pd)
 
         residual_diagnostics = kutil.compute_residual_diagnostics(
-            trained_model,
-            self.seasonal_period_param,
-            self.DEFAULT_SKIP_OBSERVATIONS,
-            self.DEFAULT_LJUNG_BOX_LAGS,
-            pd)
+            trained_model, self.seasonal_period_param, self.DEFAULT_SKIP_OBSERVATIONS, self.DEFAULT_LJUNG_BOX_LAGS, pd
+        )
 
         # generate optimization history table
         optimization_history = self.__get_optimization_history_table(pd)
@@ -456,7 +451,6 @@ class AutoSarimaLearner:
             knext.Table.from_pandas(optimization_history, row_ids="keep"),
             model_binary,
         )
-
 
     def __validate_params(self, column, p, q, P, Q):
         """
@@ -910,7 +904,7 @@ class AutoSarimaLearner:
                     ic_score = np.inf
                 else:
                     # Get the appropriate information criterion
-                    ic_score = model_fit.aic # default
+                    ic_score = model_fit.aic  # default
                     if criterion_value == "bic":
                         ic_score = model_fit.bic
                     if criterion_value == "hqic":

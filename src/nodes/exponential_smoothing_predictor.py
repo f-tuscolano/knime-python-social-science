@@ -18,7 +18,7 @@ LOGGER = logging.getLogger(__name__)
         "Time Series",
         "Forecasting",
         "Seasonal",
-    ]
+    ],
 )
 @knext.input_binary(
     name="Model Input",
@@ -33,7 +33,6 @@ LOGGER = logging.getLogger(__name__)
     name="Forecast Plot",
     description="Time series plot showing historical data, forecasts, and confidence intervals. Historical data displayed as a solid line, forecasts as points, and confidence intervals as shaded area.",
 )
-
 class ExponentialSmoothingPredictor:
     """
     Generates out-of-sample forecasts from a fitted ETS (Error-Trend-Seasonal) model.
@@ -81,7 +80,8 @@ class ExponentialSmoothingPredictor:
         description="Enter the lambda parameter used for Box-Cox transformation in the ETS Learner node. Regardless of whether the lambda was estimated or user-defined in the Learner node, the same value is required. It is found in the Coefficients and Statistics output table if Box-Cox was enabled.",
         default_value=0.0,
     ).rule(
-        knext.OneOf(boxcox, [False]), knext.Effect.HIDE,
+        knext.OneOf(boxcox, [False]),
+        knext.Effect.HIDE,
     )
     confidence_level = knext.DoubleParameter(
         label="Confidence Level",
@@ -125,8 +125,7 @@ class ExponentialSmoothingPredictor:
         # Extract point forecasts and confidence intervals
         point_forecast = trained_model.forecast(steps=self.number_of_forecasts)
 
-        confidence_intervals = trained_model.get_prediction(start = point_forecast.index[0],
-                                end = point_forecast.index[-1])
+        confidence_intervals = trained_model.get_prediction(start=point_forecast.index[0], end=point_forecast.index[-1])
 
         exec_context.set_progress(0.6)
 

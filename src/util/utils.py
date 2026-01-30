@@ -183,9 +183,7 @@ def seasonality_performance_warning(
         LOGGER.warning(f"Large seasonal period warning issued for seasonality = {seasonality}")
 
 
-def validate_missing_values(
-    column: pd.Series
-) -> None:
+def validate_missing_values(column: pd.Series) -> None:
     """
     Validates input time series for missing values.
     Models for time series forecasting require complete time series data without gaps. This method checks for
@@ -201,16 +199,12 @@ def validate_missing_values(
     """
     if check_missing_values(column):
         missing_count = count_missing_values(column)
-        raise knext.InvalidParametersError(f"There are \"{missing_count}\" number of missing values in the target column.")
+        raise knext.InvalidParametersError(f'There are "{missing_count}" number of missing values in the target column.')
 
 
 def enhance_predictions_table(
-    model,
-    input_table: knext.Table,
-    input_column: str,
-    seasonality: int,
-    DEFAULT_SKIP_OBSERVATIONS: int,
-pd) -> pd.DataFrame:
+    model, input_table: knext.Table, input_column: str, seasonality: int, DEFAULT_SKIP_OBSERVATIONS: int, pd
+) -> pd.DataFrame:
     """
     Create an enhanced predictions table that includes original values, predictions, and residuals.
 
@@ -298,10 +292,7 @@ pd) -> pd.DataFrame:
     return predictions_df
 
 
-def get_model_stats(
-    model,
-    data: list | None = None
-) -> pd.DataFrame:
+def get_model_stats(model, data: list | None = None) -> pd.DataFrame:
     """
     Compiles comprehensive model summary with parameters, coefficients, and fit statistics.
 
@@ -375,13 +366,7 @@ def get_model_stats(
     return summary
 
 
-def compute_residual_diagnostics(
-    model,
-    seasonality: int,
-    DEFAULT_SKIP_OBSERVATIONS: int,
-    DEFAULT_LJUNG_BOX_LAGS: int,
-    pd
-) -> pd.DataFrame:
+def compute_residual_diagnostics(model, seasonality: int, DEFAULT_SKIP_OBSERVATIONS: int, DEFAULT_LJUNG_BOX_LAGS: int, pd) -> pd.DataFrame:
     """
     Computes comprehensive residual diagnostic tests for the fitted model. Allowed models so far are ETS and SARIMAX models from statsmodels.
 
@@ -503,9 +488,9 @@ def compute_residual_diagnostics(
 
 
 def box_cox_transform(
-        series,
-        LOGGER: logging.Logger,
-        lambda_value: float | None = None,
+    series,
+    LOGGER: logging.Logger,
+    lambda_value: float | None = None,
 ) -> tuple[pd.Series, float]:
     """
     Applies Box-Cox transformation to the given Pandas Series.
@@ -527,9 +512,7 @@ def box_cox_transform(
     from scipy.stats import boxcox
 
     if (series <= 0).any():
-        raise knext.InvalidParametersError(
-            "Box-Cox transformation requires all observed values to be positive."
-        )
+        raise knext.InvalidParametersError("Box-Cox transformation requires all observed values to be positive.")
 
     # Estimate optimal lambda
     if lambda_value is None:
@@ -548,18 +531,13 @@ def box_cox_transform(
             )
         transformed_series = boxcox(series, lmbda=lambda_value)
 
-    if transformed_series.any() == float('inf') or transformed_series.any() == float('-inf'):
-        raise knext.InvalidParametersError(
-            "Box-Cox transformation generated infinite values. Please check the input data and lambda parameter."
-        )
+    if transformed_series.any() == float("inf") or transformed_series.any() == float("-inf"):
+        raise knext.InvalidParametersError("Box-Cox transformation generated infinite values. Please check the input data and lambda parameter.")
 
     return (pd.Series(transformed_series), lambda_value)
 
 
-def inv_box_cox_transform(
-    series,
-    lambda_value: float
-) -> pd.Series:
+def inv_box_cox_transform(series, lambda_value: float) -> pd.Series:
     """
     Applies the inverse Box-Cox transformation to the given Pandas Series.
 
