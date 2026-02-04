@@ -181,8 +181,8 @@ class LinearModelLearner:
 
     ## Categorical Variables
 
-    String/categorical predictors are automatically converted to dummy variables using one-hot encoding. The first category 
-    of each categorical variable serves as the reference category (dropped to avoid the dummy variable trap). Dummy variable 
+    String/categorical predictors are automatically converted to dummy variables using one-hot encoding. The first category
+    of each categorical variable serves as the reference category (dropped to avoid the dummy variable trap). Dummy variable
     names follow the format: `VariableName_CategoryValue`.
 
     ## Outputs
@@ -378,10 +378,8 @@ class LinearModelLearner:
             else:
                 X_sm = X
             leverage = (X_sm * np.linalg.solve(X_sm.T @ X_sm, X_sm.T).T).sum(axis=1)
-            studentized_residuals = residuals / (np.sqrt(mse * (1 - leverage)))
         else:
             leverage = np.full(n_obs, np.nan)
-            studentized_residuals = standardized_residuals
 
         # Add diagnostic tests to model summary
         diagnostic_results = self._compute_residual_diagnostics(residuals, X, mse, stats_dict, stats, np)
@@ -871,8 +869,6 @@ class LinearModelLearner:
         Returns:
             list: Diagnostic test results to append to model summary
         """
-        reg_type = self.model_settings.regression_type
-
         # Jarque-Bera test for normality
         jb_stat, jb_pvalue = stats.jarque_bera(residuals)
         jb_interp = "Residuals are normally distributed (p > 0.05)" if jb_pvalue > 0.05 else "Residuals deviate from normality (p ≤ 0.05)"
@@ -982,7 +978,7 @@ class LinearModelLearner:
                 residuals_smooth = np.convolve(residuals_sorted, np.ones(window) / window, mode="valid")
                 y_pred_smooth = y_pred_sorted[(window - 1) // 2 : -(window - 1) // 2]
                 ax1.plot(y_pred_smooth, residuals_smooth, "b-", linewidth=2, alpha=0.8)
-        except:
+        except Exception:
             pass
 
         # Plot 2: Q-Q Plot
@@ -1013,7 +1009,7 @@ class LinearModelLearner:
                 sqrt_std_resid_smooth = np.convolve(sqrt_std_resid_sorted, np.ones(window) / window, mode="valid")
                 y_pred_smooth = y_pred_sorted[(window - 1) // 2 : -(window - 1) // 2]
                 ax3.plot(y_pred_smooth, sqrt_std_resid_smooth, "r-", linewidth=2, alpha=0.8)
-        except:
+        except Exception:
             pass
 
         # Plot 4: Cook's Distance
@@ -1055,7 +1051,7 @@ class LinearModelLearner:
         ax6 = axes[1, 2]
         if self.model_settings.compute_influence and reg_type == RegressionType.OLS.name:
             leverage_threshold = 2 * len(cooks_d) / n_obs
-            colors = ["red" if (l > leverage_threshold and abs(sr) > 2) else "blue" for l, sr in zip(leverage, standardized_residuals)]
+            colors = ["red" if (lev > leverage_threshold and abs(sr) > 2) else "blue" for lev, sr in zip(leverage, standardized_residuals)]
             ax6.scatter(leverage, standardized_residuals, c=colors, alpha=0.6, edgecolors="k", s=50)
             ax6.axhline(y=0, color="gray", linestyle="-", linewidth=1)
             ax6.axhline(y=2, color="r", linestyle="--", linewidth=1)
