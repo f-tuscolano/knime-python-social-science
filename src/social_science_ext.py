@@ -66,3 +66,4 @@ import nodes.ts_interpolator  # noqa: E402
 import nodes.exponential_smoothing_learner  # noqa: E402
 import nodes.exponential_smoothing_predictor  # noqa: E402
 import nodes.acf_pacf_plot  # noqa: E402, F401
+import nodes.linear_regression  # noqa: E402, F401
