@@ -1,19 +1,35 @@
-"""
-Module for Linear Regression Node
-"""
+import logging
 
+# Set up the logger
+LOGGER = logging.getLogger(__name__)
+
+import warnings
+warnings.filterwarnings("ignore")
+
+# Import standard libraries first
 import numpy as np
+
+# Import third-party libraries
 from sklearn.linear_model import LinearRegression
-import pandas as pd
 
-class LinearRegressionNode:
+# Import local modules
+from .utils import some_util_function
+
+# Linear model learner class
+class LinearModelLearner:
     def __init__(self):
-        pass
-    
-    def fit(self, X, y):
-        model = LinearRegression()
-        model.fit(X, y)
-        return model
+        self.model = LinearRegression()
 
-    def predict(self, model, X):
-        return model.predict(X)
+    def fit(self, X, y):
+        self.model.fit(X, y)
+
+    def predict(self, X):
+        return self.model.predict(X)
+
+    def get_coefficients(self):
+        coef_columns = [
+            "coef1",
+            "coef2",
+            "coef3",
+        ]
+        return self.model.coef_, coef_columns
