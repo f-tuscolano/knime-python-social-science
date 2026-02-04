@@ -15,6 +15,7 @@ knime-python-base = "*"
 knime-python-versions = "5.*"
 knime-python-scripting = "5.*"
 factor-analyzer = ">=0.5.1,<0.6"
+linearmodels = ">=7.0,<8"
 
 [feature.build.dependencies]
 python = "3.9.*"
