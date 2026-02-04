@@ -1,19 +1,13 @@
 import logging
+import warnings
+
+from sklearn.linear_model import LinearRegression
+
+warnings.filterwarnings("ignore")
 
 # Set up the logger
 LOGGER = logging.getLogger(__name__)
 
-import warnings
-warnings.filterwarnings("ignore")
-
-# Import standard libraries first
-import numpy as np
-
-# Import third-party libraries
-from sklearn.linear_model import LinearRegression
-
-# Import local modules
-from .utils import some_util_function
 
 # Linear model learner class
 class LinearModelLearner:
