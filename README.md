@@ -12,11 +12,21 @@ The project's goal is to integrate advanced statistical methodologies within KNI
 
 * **Auto-SARIMA Predictor**: Generates future forecasts using a pre-trained SARIMA model from the Auto-SARIMA Learner node.
 
+* **(Partial) Autocorrelation Functions and Plots**: Calculates and visualizes Autocorrelation Function (ACF) and Partial Autocorrelation Function (PACF) for time series analysis. Provides both plots and numerical values with confidence intervals, plus Ljung-Box Q-statistics for testing autocorrelation. Supports multiple PACF calculation methods.
+
 * **Correspondence Analyzer**: Performs Correspondence Analysis (CA) or Multiple Correspondence Analysis (MCA) on categorical data to explore associations between variables. Automatically selects the appropriate method based on input dimensionality.
+
+* **ETS Learner**: Trains an Error-Trend-Seasonal (ETS) exponential smoothing model for time series forecasting. Automatically selects optimal model components (error, trend, seasonal) or allows manual specification. Supports both additive and multiplicative components with optional damping for trend.
+
+* **ETS Predictor**: Generates out-of-sample forecasts from a fitted ETS model with prediction intervals. Produces forecast plots showing historical data, predictions, and confidence bounds.
 
 * **Factor Analyzer**: Trains a dimensionality-reduction model using either Principal Component Analysis (PCA) or Exploratory Factor Analysis (EFA). Supports optional component/factor rotation for interpretability (varimax, promax, quartimax) and incremental PCA for large datasets.
 
 * **Factor Predictor**: Applies a trained PCA or EFA model to new datasets, projecting data onto the learned components or factors. Maintains full mathematical consistency with all model variants including rotated solutions and incremental PCA.
+
+* **Linear Model Learner**: Estimates linear regression models with support for Ordinary Least Squares (OLS), Ridge, Lasso regularization, and panel data methods with fixed or random effects. Provides comprehensive diagnostics including heteroskedasticity tests, normality tests, and multicollinearity analysis.
+
+* **Time Series Interpolator**: Fills missing values in time series data using various interpolation methods (linear, polynomial, spline, PCHIP, Akima). Supports optional Box-Cox transformation for handling non-stationary variance and automatically back-transforms results.
 
 ## Package Organization
 
