@@ -35,7 +35,7 @@ LOGGER = logging.getLogger(__name__)
 )
 @knext.output_image(
     name="Factor Map",
-    description="2D biplot visualization displaying category positions in the first two factorial dimensions. Point size reflects category frequency, distances indicate similarity, and positioning reveals association patterns.", 
+    description="2D biplot visualization displaying category positions in the first two factorial dimensions. Point size reflects category frequency, distances indicate similarity, and positioning reveals association patterns.",
 )
 class CorrespondenceAnalysisNode:
     """
