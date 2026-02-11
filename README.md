@@ -33,7 +33,7 @@ The project's goal is to integrate advanced statistical methodologies within KNI
 * **`icons/`**: Directory containing visual assets and icon images for the extension nodes, including specialized icons for time series analysis, correspondence analysis, and factor analysis components.
 * **`config.yml`**: Configuration file specifying the path to the extension source code directory. This file works in conjunction with `knime.yml` to define the extension structure and dependencies.
 * **`knime.yml`**: YAML configuration file containing extension metadata, including extension identification, module paths, and KNIME integration specifications.
-* **`pixi.toml`**: Pixi package manager configuration file defining Python dependencies, environment setup, and reproducible package management for the extension.
+* **`pixi.toml & pixi.lock`**: Pixi package manager configuration file defining Python dependencies, environment setup, and reproducible package management for the extension.
 * **`ruff.toml`**: Configuration file for Ruff linter and formatter, ensuring code quality and consistent styling across the project.
 * **`LICENSE.TXT`**: License file containing the terms and conditions under which this extension is distributed.
 * **`src/social_science_ext.py`**: Main extension module that registers and initializes all nodes within the Social Science Extension for KNIME Analytics Platform.
@@ -43,7 +43,7 @@ The project's goal is to integrate advanced statistical methodologies within KNI
     - `factor_analysis.py`: Factor analysis learner (PCA/EFA) with multiple rotation methods
     - `factor_scorer.py`: Factor scoring node for applying trained models to new data
     - `linear_regression.py`: Linear regression learner with OLS, Ridge, Lasso, and panel data support
-    - `_utils.py`: Shared utility functions for multivariate analysis nodes
+    - `multivariate_cat.py`: It contains the subcategory used for the multivariate analysis nodes.
   - **`timeseries_analysis/`**: Time series modeling and forecasting methods:
     - `acf_pacf_plot.py`: Autocorrelation and Partial Autocorrelation Functions with plots and diagnostics
     - `arima_learner.py`: SARIMA/SARIMAX model fitting with simulated annealing optimization
@@ -51,7 +51,7 @@ The project's goal is to integrate advanced statistical methodologies within KNI
     - `exponential_smoothing_learner.py`: Error-Trend-Seasonal (ETS) exponential smoothing model learner
     - `exponential_smoothing_predictor.py`: ETS model predictor for generating forecasts
     - `ts_interpolator.py`: Time series missing value interpolation with various methods
-    - `_utils.py`: Shared utility functions for time series analysis nodes
+    - `timeseries_cat.py`: It contains the subcategory used for the timeseries analysis nodes.
 * **`src/util/`**: Utility module directory containing helper functions and shared code components:
   - `utils.py`: Collection of utility functions providing common data processing and validation methods
 
