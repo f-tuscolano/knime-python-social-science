@@ -2,7 +2,7 @@
 # It is used to define the extension's metadata and configuration.
 
 # Extension metadata
-name:  social_science  # Will be concatenated with the group_id to an ID
+name:  social-science  # Will be concatenated with the group_id to an ID
 group_id: uni.bocconi
 description: KNIME Nodes for Statistics and Social Science # Human readable bundle name / description
 long_description: A comprehensive toolkit for social science analytics in KNIME, providing statistical, exploratory, and multivariate methods tailored to empirical and operational research, marketing, experimentation and business analytics. This extension supports workflows for time-series, behavioral, survey, and observational data analysis. Developed in collaboration with professors and students from Bocconi University, Department of Decision Sciences.
