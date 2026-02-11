@@ -1,6 +1,6 @@
 import logging
 import knime.extension as knext
-import social_science_ext
+from ._utils import timeseries_analysis_category
 
 LOGGER = logging.getLogger(__name__)
 
@@ -8,8 +8,8 @@ LOGGER = logging.getLogger(__name__)
 @knext.node(
     name="ETS Predictor",
     node_type=knext.NodeType.PREDICTOR,
-    icon_path="icons/AutoSARIMAPredictor.png",
-    category=social_science_ext.main_category,
+    icon_path="icons/TimeSeriesPredictor.png",
+    category=timeseries_analysis_category,
     id="ets_predictor",
     keywords=[
         "Exponential Smoothing",

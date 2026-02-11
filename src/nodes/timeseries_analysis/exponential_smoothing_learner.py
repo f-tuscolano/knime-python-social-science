@@ -1,7 +1,7 @@
 import logging
 import knime.extension as knext
 from util import utils as kutil
-import social_science_ext
+from ._utils import timeseries_analysis_category
 
 LOGGER = logging.getLogger(__name__)
 
@@ -98,8 +98,8 @@ class BoxCoxSettings:
 @knext.node(
     name="ETS Learner",
     node_type=knext.NodeType.LEARNER,
-    icon_path="icons/AutoSARIMALearner.png",
-    category=social_science_ext.main_category,
+    icon_path="icons/TimeSeriesLearner.png",
+    category=timeseries_analysis_category,
     id="ets_learner",
     keywords=[
         "Exponential Smoothing",

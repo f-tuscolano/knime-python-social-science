@@ -1,7 +1,7 @@
 import logging
 import knime.extension as knext
 from util import utils as kutil
-import social_science_ext
+from ._utils import multivariate_analysis_category
 
 LOGGER = logging.getLogger(__name__)
 
@@ -95,8 +95,8 @@ class ModelSettings:
 @knext.node(
     name="Linear Model Learner",
     node_type=knext.NodeType.LEARNER,
-    icon_path="icons/Interpolation.png",
-    category=social_science_ext.main_category,
+    icon_path="icons/LinearModelLearner.png",
+    category=multivariate_analysis_category,
     keywords=[
         "Linear Regression",
         "OLS",

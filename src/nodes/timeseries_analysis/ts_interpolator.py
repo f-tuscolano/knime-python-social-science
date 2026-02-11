@@ -1,9 +1,7 @@
 import logging
 import knime.extension as knext
 from util import utils as kutil
-import social_science_ext
-import pandas as pd
-import numpy as np
+from ._utils import timeseries_analysis_category
 
 LOGGER = logging.getLogger(__name__)
 
@@ -40,8 +38,8 @@ class BoxCoxSettings:
 @knext.node(
     name="Time Series Interpolator",
     node_type=knext.NodeType.MANIPULATOR,
-    icon_path="icons/AutoSARIMALearner.png",
-    category=social_science_ext.main_category,
+    icon_path="icons/TimeSeriesInterpolator.png",
+    category=timeseries_analysis_category,
     id="time_series_interpolator",
     keywords=[
         "Interpolation",
@@ -137,6 +135,10 @@ class TimeSeriesInterpolator:
         return interpolation_schema
 
     def execute(self, exec_context: knext.ExecutionContext, input_table: knext.Table):
+        # Import heavy dependencies
+        import pandas as pd
+        import numpy as np
+
         df = input_table.to_pandas()
         input_column = df[self.input_column]
         input_column_series = pd.Series(input_column, dtype=np.float64)
@@ -166,6 +168,8 @@ class TimeSeriesInterpolator:
             use_boxcox=use_boxcox,
             lambda_=lambda_,
             stability_check=True,
+            np=np,
+            pd=pd,
         )
 
         exec_context.set_progress(0.9)
@@ -176,7 +180,7 @@ class TimeSeriesInterpolator:
 
         return knext.Table.from_pandas(output_df, row_ids="keep")
 
-    def __linear_interp(self, x: np.ndarray, missing: np.ndarray):
+    def __linear_interp(self, x, missing, np):
         """
         Linear interpolation with endpoint extension.
         Equivalent to R approx(..., rule=2) on positions 1..n.
@@ -187,7 +191,7 @@ class TimeSeriesInterpolator:
         known = ~missing
         return np.interp(idx[missing], idx[known], x[known])
 
-    def __fourier_matrix(self, n: int, period: int, K: int) -> np.ndarray:
+    def __fourier_matrix(self, n: int, period: int, K: int, np):
         """
         Approximation of forecast::fourier(x, K) for a single seasonal period.
         Returns shape (n, 2K): [sin(2πkt/m), cos(2πkt/m)] for k=1..K.
@@ -202,7 +206,7 @@ class TimeSeriesInterpolator:
             cols.append(np.cos(2.0 * np.pi * k * t / period))
         return np.column_stack(cols).astype(float)
 
-    def __orthogonal_poly_matrix(self, n: int, degree: int) -> np.ndarray:
+    def __orthogonal_poly_matrix(self, n: int, degree: int, np):
         """
         Approximate stats::poly(tt, degree=...) (orthogonal polynomials).
         R's poly() uses an orthogonal polynomial basis; here we:
@@ -221,7 +225,7 @@ class TimeSeriesInterpolator:
         Q, _ = np.linalg.qr(V)  # Q has orthonormal columns
         return Q[:, :degree].astype(float)
 
-    def __fourier_poly_prefill(self, x: np.ndarray, missing: np.ndarray, seasonality: int) -> np.ndarray:
+    def __fourier_poly_prefill(self, x, missing, seasonality: int, np):
         """
         Replicates the 'Fourier + poly regression' prefill step from forecast::na.interp
         to obtain reasonable starting values before STL.
@@ -239,8 +243,8 @@ class TimeSeriesInterpolator:
         K = min(freq // 2, 5)  # K <- min(trunc(freq/2), 5)
         degree = min(max(n // 10, 1), 6)  # degree <- pmin(pmax(trunc(n/10),1),6)
 
-        F = self.__fourier_matrix(n=n, period=freq, K=K)
-        P = self.__orthogonal_poly_matrix(n=n, degree=degree)
+        F = self.__fourier_matrix(n=n, period=freq, K=K, np=np)
+        P = self.__orthogonal_poly_matrix(n=n, degree=degree, np=np)
         X = np.column_stack([F, P])  # (n, p)
 
         # Add intercept like lm() does
@@ -258,17 +262,19 @@ class TimeSeriesInterpolator:
             return out
         except Exception:
             out = x.copy()
-            out[missing] = self.__linear_interp(out, missing)
+            out[missing] = self.__linear_interp(out, missing, np)
             return out
 
     def __interpolate_series(
         self,
-        s: pd.Series,
+        s,
         seasonality: int,
         use_boxcox: bool = False,
         lambda_: float | None = None,
         stability_check: bool = True,
-    ) -> pd.Series:
+        np=None,
+        pd=None,
+    ):
         """
         Interpolate missing values in a pandas Series.
 
@@ -299,7 +305,7 @@ class TimeSeriesInterpolator:
 
         # Non-seasonal path: pure linear interpolation when seasonality == 1 or too few non-missing values
         if (seasonality == 1) or (sum(~miss) <= 2 * seasonality):
-            x[miss] = self.__linear_interp(x, miss)
+            x[miss] = self.__linear_interp(x, miss, np)
             if use_boxcox:
                 origx[miss] = kutil.inv_box_cox_transform(x[miss], lambda_)
                 return pd.Series(origx, index=idx, name=name)
@@ -307,12 +313,12 @@ class TimeSeriesInterpolator:
 
         # Seasonal path: STL on initially-filled data
         # Fourier + poly regression prefill before robust STL
-        x = self.__fourier_poly_prefill(x, miss, seasonality=seasonality)
+        x = self.__fourier_poly_prefill(x, miss, seasonality=seasonality, np=np)
         res = STL(x, period=seasonality, robust=True).fit()
         seas = res.seasonal  # seasonal component
 
         sa = x - seas  # seasonally adjusted (remove seasonal component, sa := trend + remainder)
-        sa[miss] = self.__linear_interp(sa, miss)
+        sa[miss] = self.__linear_interp(sa, miss, np)
         origx[miss] = sa[miss] + seas[miss]
 
         # Backtransform if needed
@@ -323,6 +329,6 @@ class TimeSeriesInterpolator:
         if stability_check and drange > 0:
             if np.nanmax(origx) > maxx + 0.5 * drange or np.nanmin(origx) < minx - 0.5 * drange:
                 # fall back to linear on original input
-                return self.__interpolate_series(s, seasonality=1, use_boxcox=use_boxcox, lambda_=lambda_, stability_check=False)
+                return self.__interpolate_series(s, seasonality=1, use_boxcox=use_boxcox, lambda_=lambda_, stability_check=False, np=np, pd=pd)
 
         return pd.Series(origx, index=idx, name=name)

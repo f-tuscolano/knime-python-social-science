@@ -1,7 +1,7 @@
 import logging
 import knime.extension as knext
 from util import utils as kutil
-import social_science_ext
+from ._utils import timeseries_analysis_category
 
 LOGGER = logging.getLogger(__name__)
 
@@ -25,8 +25,8 @@ class WhichPLot(knext.EnumParameterOptions):
 @knext.node(
     name="(Partial) Autocorrelation Functions and Plots",
     node_type=knext.NodeType.VISUALIZER,
-    icon_path="icons/AutoSARIMALearner.png",
-    category=social_science_ext.main_category,
+    icon_path="icons/AutocorrelationPlot.png",
+    category=timeseries_analysis_category,
     id="acf_pacf_plot",
     keywords=[
         "ACF",
