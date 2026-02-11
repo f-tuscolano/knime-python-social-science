@@ -1,7 +1,7 @@
 import logging
 import knime.extension as knext
 from util import utils as kutil
-from ._utils import multivariate_analysis_category
+from multivariate_cat import multivariate_analysis_category
 
 LOGGER = logging.getLogger(__name__)
 
