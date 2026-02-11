@@ -1,6 +1,6 @@
 import logging
 import knime.extension as knext
-from timeseries_cat import timeseries_analysis_category
+from .timeseries_cat import timeseries_analysis_category
 
 LOGGER = logging.getLogger(__name__)
 
